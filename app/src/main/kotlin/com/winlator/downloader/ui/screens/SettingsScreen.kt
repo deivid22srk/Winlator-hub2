@@ -1,10 +1,23 @@
 package com.winlator.downloader.ui.screens
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.winlator.downloader.data.GameSetting
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +30,8 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen() {
     val context = LocalContext.current
     var downloadPath by remember { mutableStateOf(getDownloadPath(context)) }
+    var repoUrl by remember { mutableStateOf(getRepoUrl(context)) }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -28,10 +43,11 @@ fun SettingsScreen() {
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text(text = "Download", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(text = "Geral", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 
             OutlinedTextField(
                 value = downloadPath,
@@ -43,8 +59,37 @@ fun SettingsScreen() {
                 placeholder = { Text("Ex: WinlatorDownloads") },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                supportingText = { Text("Arquivos serão salvos em Downloads/\$Subpasta") }
+                supportingText = { Text("Arquivos serão salvos em Downloads/$downloadPath") }
             )
+
+            HorizontalDivider()
+
+            Text(text = "Repositório de Jogos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+            OutlinedTextField(
+                value = repoUrl,
+                onValueChange = {
+                    repoUrl = it
+                    saveRepoUrl(context, it)
+                },
+                label = { Text("URL do Repositório (JSON)") },
+                placeholder = { Text("https://exemplo.com/jogos.json") },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) }
+            )
+
+            Button(
+                onClick = {
+                    importGameSettingsFromUrl(context, repoUrl) {
+                        // Refresh logic could go here
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Importar Configurações")
+            }
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
@@ -82,4 +127,54 @@ fun saveDownloadPath(context: Context, path: String) {
 fun getDownloadPath(context: Context): String {
     val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
     return prefs.getString("download_path", "WinlatorHub") ?: "WinlatorHub"
+}
+
+fun saveRepoUrl(context: Context, url: String) {
+    val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+    prefs.edit().putString("repo_url", url).apply()
+}
+
+fun getRepoUrl(context: Context): String {
+    val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+    return prefs.getString("repo_url", "") ?: ""
+}
+
+fun importGameSettingsFromUrl(context: Context, url: String, onComplete: () -> Unit) {
+    if (url.isBlank() || !url.startsWith("http")) {
+        Toast.makeText(context, "URL inválida", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    val scope = kotlinx.coroutines.MainScope()
+    scope.launch {
+        Toast.makeText(context, "Buscando configurações...", Toast.LENGTH_SHORT).show()
+        val result = withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) null
+                    else response.body?.string()
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        if (result != null) {
+            try {
+                val type = object : TypeToken<List<GameSetting>>() {}.type
+                val importedSettings: List<GameSetting> = Gson().fromJson(result, type)
+                val currentSettings = loadGameSettings(context)
+                val updatedSettings = (currentSettings + importedSettings).distinctBy { it.name }
+                saveGameSettings(context, updatedSettings)
+                Toast.makeText(context, "${importedSettings.size} configurações importadas!", Toast.LENGTH_LONG).show()
+                onComplete()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro ao processar JSON", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Erro ao baixar arquivo", Toast.LENGTH_SHORT).show()
+        }
+    }
 }

@@ -29,9 +29,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.winlator.downloader.data.*
 import com.winlator.downloader.navigation.NavigationItem
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
 
 @Composable
 fun MainScreen() {
@@ -46,6 +47,7 @@ fun MainScreen() {
                 val items = listOf(
                     NavigationItem.Home,
                     NavigationItem.Downloads,
+                    NavigationItem.GameSettings,
                     NavigationItem.Settings
                 )
 
@@ -71,6 +73,7 @@ fun MainScreen() {
             NavHost(navController, startDestination = NavigationItem.Home.route) {
                 composable(NavigationItem.Home.route) { HomeScreen() }
                 composable(NavigationItem.Downloads.route) { DownloadScreen() }
+                composable(NavigationItem.GameSettings.route) { GameSettingsScreen() }
                 composable(NavigationItem.Settings.route) { SettingsScreen() }
             }
         }
@@ -308,16 +311,16 @@ fun AssetItem(asset: GitHubAsset, onDownload: () -> Unit) {
 fun downloadFile(context: Context, url: String, fileName: String) {
     try {
         val subPath = getDownloadPath(context)
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle(fileName)
-            .setDescription("Baixando Winlator...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "$subPath/$fileName")
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
+        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$subPath/$fileName")
 
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        downloadManager.enqueue(request)
+        val task = AppDownloadManager.addTask(url, file, fileName)
+
+        // Use a scope that lives long enough. In a real app, this should be a Foreground Service.
+        // For this task, we'll use GlobalScope just to demonstrate the logic,
+        // though it's not best practice for production Android.
+        @OptIn(DelicateCoroutinesApi::class)
+        task.start(GlobalScope)
+
         Toast.makeText(context, "Download iniciado em Downloads/$subPath", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
         Toast.makeText(context, "Erro ao iniciar download: ${e.message}", Toast.LENGTH_LONG).show()
