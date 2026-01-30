@@ -22,14 +22,64 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.winlator.downloader.data.*
+import com.winlator.downloader.navigation.NavigationItem
 import kotlinx.coroutines.launch
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
+    val navController = rememberNavController()
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                val items = listOf(
+                    NavigationItem.Home,
+                    NavigationItem.Downloads,
+                    NavigationItem.Settings
+                )
+
+                items.forEach { item ->
+                    NavigationBarItem(
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            if (currentRoute != item.route) {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.startDestinationId)
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
+            NavHost(navController, startDestination = NavigationItem.Home.route) {
+                composable(NavigationItem.Home.route) { HomeScreen() }
+                composable(NavigationItem.Downloads.route) { DownloadScreen() }
+                composable(NavigationItem.Settings.route) { SettingsScreen() }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen() {
     var selectedRepo by remember { mutableStateOf<WinlatorRepo?>(null) }
 
     Scaffold(
@@ -257,17 +307,18 @@ fun AssetItem(asset: GitHubAsset, onDownload: () -> Unit) {
 
 fun downloadFile(context: Context, url: String, fileName: String) {
     try {
+        val subPath = getDownloadPath(context)
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle(fileName)
             .setDescription("Baixando Winlator...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "$subPath/$fileName")
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         downloadManager.enqueue(request)
-        Toast.makeText(context, "Download iniciado...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Download iniciado em Downloads/$subPath", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
         Toast.makeText(context, "Erro ao iniciar download: ${e.message}", Toast.LENGTH_LONG).show()
     }
