@@ -149,7 +149,7 @@ interface SupabaseService {
     )
 
     // Game Settings
-    @GET("rest/v1/game_settings?select=*")
+    @GET("rest/v1/game_settings?select=*&order=id.desc")
     suspend fun getAllGameSettings(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String

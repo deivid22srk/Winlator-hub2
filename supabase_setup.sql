@@ -1,11 +1,11 @@
 -- Tabela de categorias
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
 
 -- Tabela de repositórios (atualizada com category_id)
-CREATE TABLE repositories (
+CREATE TABLE IF NOT EXISTS repositories (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     owner TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE repositories (
 );
 
 -- Tabela de configuração do app
-CREATE TABLE app_config (
+CREATE TABLE IF NOT EXISTS app_config (
     id INT PRIMARY KEY DEFAULT 1,
     dialog_title TEXT,
     dialog_message TEXT,
@@ -25,7 +25,7 @@ CREATE TABLE app_config (
 );
 
 -- Tabela para configurações de jogos (atualizada com campos de versão do winlator)
-CREATE TABLE game_settings (
+CREATE TABLE IF NOT EXISTS game_settings (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     format TEXT DEFAULT 'Pré instalado',
@@ -67,7 +67,8 @@ CREATE TABLE game_settings (
 );
 
 -- Inserir categorias padrão
-INSERT INTO categories (name) VALUES ('Winlator'), ('Drivers'), ('Ferramentas'), ('DXVK');
+INSERT INTO categories (name) VALUES ('Winlator'), ('Drivers'), ('Ferramentas'), ('DXVK')
+ON CONFLICT (name) DO NOTHING;
 
 -- Inserir uma configuração padrão
 INSERT INTO app_config (id, dialog_title, dialog_message, show_dialog)

@@ -94,14 +94,14 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
             )
 
             if (tabIndex == 0) {
-                val filteredGames = localGames.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                val filteredGames = localGames.filter { it.name.contains(searchQuery, ignoreCase = true) }.reversed()
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredGames) { game ->
-                        GameCard(name = game.name, subtitle = game.winlatorVersion, onClick = {
+                        GameCard(name = game.name, subtitle = "${game.winlatorVersion} | ${game.device}", onClick = {
                             onViewDetails(com.winlator.downloader.data.SupabaseGameSetting(
                                 name = game.name, device = game.device, graphics = game.graphics,
                                 winlatorVersion = game.winlatorVersion, winlatorRepoOwner = game.winlatorRepoOwner,
@@ -134,7 +134,7 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(filteredGames) { game ->
-                            GameCard(name = game.name, subtitle = "Por: ${game.submittedBy}", onClick = { onViewDetails(game) })
+                            GameCard(name = game.name, subtitle = "${game.device} | Por: ${game.submittedBy}", onClick = { onViewDetails(game) })
                         }
                     }
                 }

@@ -85,7 +85,7 @@ interface SupabaseService {
         @Header("Authorization") auth: String
     ): List<AppConfig>
 
-    @GET("rest/v1/game_settings?status=eq.approved&select=*")
+    @GET("rest/v1/game_settings?status=eq.approved&select=*&order=id.desc")
     suspend fun getApprovedGameSettings(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String
