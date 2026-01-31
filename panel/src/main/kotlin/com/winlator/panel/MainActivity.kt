@@ -83,10 +83,16 @@ fun PanelMainScreen() {
                     onClick = { tabIndex = 0 }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, null) },
-                    label = { Text("Config") },
+                    icon = { Icon(Icons.Default.VideogameAsset, null) },
+                    label = { Text("Jogos") },
                     selected = tabIndex == 1,
                     onClick = { tabIndex = 1 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    label = { Text("Config") },
+                    selected = tabIndex == 2,
+                    onClick = { tabIndex = 2 }
                 )
             }
         },
@@ -124,8 +130,8 @@ fun PanelMainScreen() {
             }
         } else {
             Column(Modifier.padding(padding)) {
-                if (tabIndex == 0) {
-                    RepoList(repositories, onDelete = { id ->
+                when (tabIndex) {
+                    0 -> RepoList(repositories, onDelete = { id ->
                         scope.launch {
                             try {
                                 service.deleteRepository(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.$id")
@@ -135,8 +141,8 @@ fun PanelMainScreen() {
                             }
                         }
                     })
-                } else {
-                    appConfig?.let { config ->
+                    1 -> GameSettingsAdminScreen(service)
+                    2 -> appConfig?.let { config ->
                         ConfigScreen(config, onUpdate = { updated ->
                             scope.launch {
                                 try {
@@ -189,6 +195,77 @@ fun ConfigScreen(config: AppConfig, onUpdate: (AppConfig) -> Unit) {
         }
         Button(onClick = { onUpdate(config.copy(dialogTitle = title, dialogMessage = message, showDialog = showDialog)) }, modifier = Modifier.fillMaxWidth()) {
             Text("Salvar Configuração")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GameSettingsAdminScreen(service: SupabaseService) {
+    val scope = rememberCoroutineScope()
+    var submissions by remember { mutableStateOf<List<SupabaseGameSetting>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    fun load() {
+        scope.launch {
+            isLoading = true
+            try {
+                submissions = service.getAllGameSettings(SupabaseClient.API_KEY, SupabaseClient.AUTH)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) { load() }
+
+    if (isLoading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(submissions) { game ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(game.name, style = MaterialTheme.typography.titleMedium)
+                                Text("Por: ${game.submittedBy}", style = MaterialTheme.typography.bodySmall)
+                                Badge(containerColor = when(game.status) {
+                                    "approved" -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                                    "rejected" -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.secondary
+                                }) {
+                                    Text(game.status.uppercase(), color = androidx.compose.ui.graphics.Color.White)
+                                }
+                            }
+
+                            if (game.status == "pending") {
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", mapOf("status" to "approved"))
+                                        load()
+                                    }
+                                }) { Icon(Icons.Default.Check, null, tint = androidx.compose.ui.graphics.Color(0xFF4CAF50)) }
+
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", mapOf("status" to "rejected"))
+                                        load()
+                                    }
+                                }) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
+                            } else {
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        service.deleteGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}")
+                                        load()
+                                    }
+                                }) { Icon(Icons.Default.Delete, null) }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

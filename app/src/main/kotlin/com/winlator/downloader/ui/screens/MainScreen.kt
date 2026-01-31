@@ -2,6 +2,7 @@ package com.winlator.downloader.ui.screens
 
 import android.app.DownloadManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
@@ -341,12 +342,14 @@ fun downloadFile(context: Context, url: String, fileName: String) {
         val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$subPath/$fileName")
 
         val task = AppDownloadManager.addTask(url, file, fileName)
+        task.start(AppDownloadManager.managerScope)
 
-        // Use a scope that lives long enough. In a real app, this should be a Foreground Service.
-        // For this task, we'll use GlobalScope just to demonstrate the logic,
-        // though it's not best practice for production Android.
-        @OptIn(DelicateCoroutinesApi::class)
-        task.start(GlobalScope)
+        val intent = Intent(context, com.winlator.downloader.DownloadService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
 
         Toast.makeText(context, "Download iniciado em Downloads/$subPath", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {

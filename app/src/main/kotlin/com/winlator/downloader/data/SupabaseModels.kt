@@ -1,8 +1,7 @@
 package com.winlator.downloader.data
 
 import com.google.gson.annotations.SerializedName
-import retrofit2.http.GET
-import retrofit2.http.Header
+import retrofit2.http.*
 
 data class SupabaseRepo(
     val name: String,
@@ -17,6 +16,26 @@ data class AppConfig(
     @SerializedName("show_dialog") val showDialog: Boolean
 )
 
+data class SupabaseGameSetting(
+    val id: Int? = null,
+    val name: String,
+    val format: String = "Pré instalado",
+    val device: String = "",
+    val gamepad: String = "Não",
+    @SerializedName("winlator_version") val winlatorVersion: String = "",
+    val graphics: String = "",
+    val wine: String = "",
+    val box64: String = "",
+    @SerializedName("box64_preset") val box64Preset: String = "",
+    val resolution: String = "",
+    @SerializedName("gpu_driver") val gpuDriver: String = "",
+    val dxvk: String = "",
+    @SerializedName("audio_driver") val audioDriver: String = "alsa",
+    @SerializedName("submitted_by") val submittedBy: String = "",
+    @SerializedName("youtube_url") val youtubeUrl: String = "",
+    val status: String = "pending"
+)
+
 interface SupabaseService {
     @GET("rest/v1/repositories?select=*")
     suspend fun getRepositories(
@@ -29,6 +48,19 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String
     ): List<AppConfig>
+
+    @GET("rest/v1/game_settings?status=eq.approved&select=*")
+    suspend fun getApprovedGameSettings(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String
+    ): List<SupabaseGameSetting>
+
+    @POST("rest/v1/game_settings")
+    suspend fun submitGameSetting(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Body setting: SupabaseGameSetting
+    )
 }
 
 object SupabaseClient {

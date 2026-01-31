@@ -105,6 +105,7 @@ object AppDownloadManager {
     val client = OkHttpClient()
     private val _tasks = mutableStateListOf<DownloadTask>()
     val tasks: List<DownloadTask> = _tasks
+    val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun addTask(url: String, file: File, title: String): DownloadTask {
         val existing = _tasks.find { it.url == url }

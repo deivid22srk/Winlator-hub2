@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import androidx.compose.ui.window.Dialog
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -27,25 +28,59 @@ import com.winlator.downloader.data.GameSetting
 fun GameSettingsScreen() {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
-    var gameSettings by remember { mutableStateOf(loadGameSettings(context)) }
+    var localGames by remember { mutableStateOf(loadGameSettings(context)) }
+    var cloudGames by remember { mutableStateOf<List<com.winlator.downloader.data.SupabaseGameSetting>>(emptyList()) }
     var showAddDialog by remember { mutableStateOf(false) }
-    var selectedGame by remember { mutableStateOf<GameSetting?>(null) }
+    var selectedLocalGame by remember { mutableStateOf<GameSetting?>(null) }
+    var selectedCloudGame by remember { mutableStateOf<com.winlator.downloader.data.SupabaseGameSetting?>(null) }
+    var tabIndex by remember { mutableIntStateOf(0) }
+    var isLoadingCloud by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    val filteredGames = gameSettings.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    val supabaseService = remember {
+        retrofit2.Retrofit.Builder()
+            .baseUrl(com.winlator.downloader.data.SupabaseClient.URL)
+            .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+            .build()
+            .create(com.winlator.downloader.data.SupabaseService::class.java)
+    }
+
+    LaunchedEffect(tabIndex) {
+        if (tabIndex == 1) {
+            isLoadingCloud = true
+            try {
+                cloudGames = supabaseService.getApprovedGameSettings(
+                    com.winlator.downloader.data.SupabaseClient.API_KEY,
+                    com.winlator.downloader.data.SupabaseClient.AUTH
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            isLoadingCloud = false
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Configurações de Jogos") },
-                actions = {
-                    IconButton(onClick = {
-                        backupGameSettings(context, gameSettings)
-                        Toast.makeText(context, "Backup realizado!", Toast.LENGTH_SHORT).show()
-                    }) {
-                        Icon(Icons.Default.Backup, contentDescription = "Backup")
+            Column {
+                TopAppBar(
+                    title = { Text("Configurações de Jogos") },
+                    actions = {
+                        if (tabIndex == 0) {
+                            IconButton(onClick = {
+                                backupGameSettings(context, localGames)
+                                Toast.makeText(context, "Backup realizado!", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Icon(Icons.Default.Backup, contentDescription = "Backup")
+                            }
+                        }
                     }
+                )
+                TabRow(selectedTabIndex = tabIndex) {
+                    Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Meus Jogos") })
+                    Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Comunidade") })
                 }
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
@@ -62,13 +97,31 @@ fun GameSettingsScreen() {
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(filteredGames) { game ->
-                    GameCard(game = game, onClick = { selectedGame = game })
+            if (tabIndex == 0) {
+                val filteredGames = localGames.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredGames) { game ->
+                        GameCard(name = game.name, subtitle = game.winlatorVersion, onClick = { selectedLocalGame = game })
+                    }
+                }
+            } else {
+                if (isLoadingCloud) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                } else {
+                    val filteredGames = cloudGames.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filteredGames) { game ->
+                            GameCard(name = game.name, subtitle = "Por: ${game.submittedBy}", onClick = { selectedCloudGame = game })
+                        }
+                    }
                 }
             }
         }
@@ -77,29 +130,78 @@ fun GameSettingsScreen() {
             GameEditDialog(
                 onDismiss = { showAddDialog = false },
                 onSave = { newGame ->
-                    gameSettings = gameSettings + newGame
-                    saveGameSettings(context, gameSettings)
+                    localGames = localGames + newGame
+                    saveGameSettings(context, localGames)
                     showAddDialog = false
                 }
             )
         }
 
-        if (selectedGame != null) {
+        if (selectedLocalGame != null) {
             GameDetailDialog(
-                game = selectedGame!!,
-                onDismiss = { selectedGame = null },
+                name = selectedLocalGame!!.name,
+                format = selectedLocalGame!!.format,
+                device = selectedLocalGame!!.device,
+                gamepad = selectedLocalGame!!.gamepad,
+                winlatorVersion = selectedLocalGame!!.winlatorVersion,
+                graphics = selectedLocalGame!!.graphics,
+                wine = selectedLocalGame!!.wine,
+                box64 = selectedLocalGame!!.box64,
+                box64Preset = selectedLocalGame!!.box64Preset,
+                resolution = selectedLocalGame!!.resolution,
+                gpuDriver = selectedLocalGame!!.gpuDriver,
+                dxvk = selectedLocalGame!!.dxvk,
+                audioDriver = selectedLocalGame!!.audioDriver,
+                submittedBy = "",
+                youtubeUrl = "",
+                isCloud = false,
+                onDismiss = { selectedLocalGame = null },
                 onDelete = {
-                    gameSettings = gameSettings.filter { it.id != selectedGame!!.id }
-                    saveGameSettings(context, gameSettings)
-                    selectedGame = null
+                    localGames = localGames.filter { it.id != selectedLocalGame!!.id }
+                    saveGameSettings(context, localGames)
+                    selectedLocalGame = null
+                },
+                onSubmitToCloud = { _, submittedBy, youtubeUrl ->
+                    scope.launch {
+                        try {
+                            val g = selectedLocalGame!!
+                            supabaseService.submitGameSetting(
+                                com.winlator.downloader.data.SupabaseClient.API_KEY,
+                                com.winlator.downloader.data.SupabaseClient.AUTH,
+                                com.winlator.downloader.data.SupabaseGameSetting(
+                                    name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
+                                    winlatorVersion = g.winlatorVersion, graphics = g.graphics, wine = g.wine,
+                                    box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
+                                    gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
+                                    submittedBy = submittedBy, youtubeUrl = youtubeUrl
+                                )
+                            )
+                            Toast.makeText(context, "Enviado para análise!", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Erro ao enviar", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
+            )
+        }
+
+        if (selectedCloudGame != null) {
+            val g = selectedCloudGame!!
+            GameDetailDialog(
+                name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
+                winlatorVersion = g.winlatorVersion, graphics = g.graphics, wine = g.wine,
+                box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
+                gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
+                submittedBy = g.submittedBy, youtubeUrl = g.youtubeUrl,
+                isCloud = true,
+                onDismiss = { selectedCloudGame = null }
             )
         }
     }
 }
 
 @Composable
-fun GameCard(game: GameSetting, onClick: () -> Unit) {
+fun GameCard(name: String, subtitle: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -111,8 +213,8 @@ fun GameCard(game: GameSetting, onClick: () -> Unit) {
             Icon(Icons.Default.VideogameAsset, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(text = game.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(text = "${game.winlatorVersion} | ${game.gpuDriver}", style = MaterialTheme.typography.bodySmall)
+                Text(text = name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall)
             }
             Spacer(modifier = Modifier.weight(1f))
             Icon(Icons.Default.ChevronRight, contentDescription = null)
@@ -180,37 +282,94 @@ fun GameEditDialog(onDismiss: () -> Unit, onSave: (GameSetting) -> Unit) {
 }
 
 @Composable
-fun GameDetailDialog(game: GameSetting, onDismiss: () -> Unit, onDelete: () -> Unit) {
+fun GameDetailDialog(
+    name: String, format: String, device: String, gamepad: String, winlatorVersion: String,
+    graphics: String, wine: String, box64: String, box64Preset: String, resolution: String,
+    gpuDriver: String, dxvk: String, audioDriver: String, submittedBy: String, youtubeUrl: String,
+    isCloud: Boolean, onDismiss: () -> Unit, onDelete: (() -> Unit)? = null,
+    onSubmitToCloud: ((String, String, String) -> Unit)? = null
+) {
+    var showSubmitDialog by remember { mutableStateOf(false) }
+
     Dialog(onDismissRequest = onDismiss) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f)) {
+            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "CONFIGURAÇÕES JOGO", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text(text = "🎮 Nome: ${game.name}")
-                Text(text = "🗂️ Formato: ${game.format}")
-                Text(text = "📱 Dispositivo: ${game.device}")
-                Text(text = "🎮 Gamepad Virtual: ${game.gamepad}")
-                Text(text = "🪟 Winlator Versão: ${game.winlatorVersion}")
-                Text(text = "📱 Gráfico do jogo: ${game.graphics}")
+                Text(text = "🎮 Nome: $name")
+                Text(text = "🗂️ Formato: $format")
+                Text(text = "📱 Dispositivo: $device")
+                Text(text = "🎮 Gamepad Virtual: $gamepad")
+                Text(text = "🪟 Winlator Versão: $winlatorVersion")
+                Text(text = "📱 Gráfico do jogo: $graphics")
+
+                if (isCloud && submittedBy.isNotBlank()) {
+                    Text(text = "👤 Enviado por: $submittedBy", color = MaterialTheme.colorScheme.secondary)
+                    if (youtubeUrl.isNotBlank()) {
+                        Text(text = "📺 YouTube: $youtubeUrl", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
                 HorizontalDivider()
-                Text(text = "🍷 Wine: ${game.wine}")
-                Text(text = "🔧 BOX64: ${game.box64}")
-                Text(text = "🔧 BOX64 Preset: ${game.box64Preset}")
+                Text(text = "🍷 Wine: $wine")
+                Text(text = "🔧 BOX64: $box64")
+                Text(text = "🔧 BOX64 Preset: $box64Preset")
                 HorizontalDivider()
                 Text(text = "🔧 Edit Container")
-                Text(text = "🔧 Resolução: ${game.resolution}")
-                Text(text = "🔧 GPU Driver: ${game.gpuDriver}")
-                Text(text = "🔧 DXVK/VKD3D: ${game.dxvk}")
-                Text(text = "🔧 Áudio Driver: ${game.audioDriver}")
+                Text(text = "🔧 Resolução: $resolution")
+                Text(text = "🔧 GPU Driver: $gpuDriver")
+                Text(text = "🔧 DXVK/VKD3D: $dxvk")
+                Text(text = "🔧 Áudio Driver: $audioDriver")
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
-                        Text("Excluir")
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!isCloud && onSubmitToCloud != null) {
+                        Button(onClick = { showSubmitDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.CloudUpload, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Enviar para Comunidade")
+                        }
                     }
-                    Button(onClick = onDismiss) { Text("Fechar") }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        if (onDelete != null) {
+                            TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                                Text("Excluir")
+                            }
+                        }
+                        Button(onClick = onDismiss) { Text("Fechar") }
+                    }
                 }
             }
         }
+    }
+
+    if (showSubmitDialog) {
+        var senderName by remember { mutableStateOf("") }
+        var videoUrl by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showSubmitDialog = false },
+            title = { Text("Enviar para Análise") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Preencha seu nome e opcionalmente um link de vídeo.")
+                    OutlinedTextField(value = senderName, onValueChange = { senderName = it }, label = { Text("Seu Nome") })
+                    OutlinedTextField(value = videoUrl, onValueChange = { videoUrl = it }, label = { Text("URL YouTube (Opcional)") })
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (senderName.isNotBlank()) {
+                        onSubmitToCloud?.invoke(name, senderName, videoUrl)
+                        showSubmitDialog = false
+                    }
+                }) { Text("Enviar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSubmitDialog = false }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

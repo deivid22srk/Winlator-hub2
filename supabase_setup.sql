@@ -30,3 +30,24 @@ INSERT INTO repositories (name, owner, repo, description) VALUES
 ('WINLATOR LUDASHI', 'Succubussix', 'winlator-bionic-glibc', 'Versão Bionic Glibc'),
 ('WinlatorOSS', 'Mart-01-oss', 'WinlatorOSS', 'Winlator Open Source Software'),
 ('Drivers Turnip', 'K11MCH1', 'WinlatorTurnipDrivers', 'Drivers Turnip para Winlator');
+
+-- Tabela para configurações de jogos enviadas pela comunidade
+CREATE TABLE game_settings (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    format TEXT DEFAULT 'Pré instalado',
+    device TEXT,
+    gamepad TEXT DEFAULT 'Não',
+    winlator_version TEXT,
+    graphics TEXT,
+    wine TEXT,
+    box64 TEXT,
+    box64_preset TEXT,
+    resolution TEXT,
+    gpu_driver TEXT,
+    dxvk TEXT,
+    audio_driver TEXT DEFAULT 'alsa',
+    submitted_by TEXT,
+    youtube_url TEXT,
+    status TEXT DEFAULT 'pending' -- pending, approved, rejected
+);
