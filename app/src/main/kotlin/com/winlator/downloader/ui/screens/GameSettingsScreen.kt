@@ -25,12 +25,11 @@ import com.winlator.downloader.data.GameSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameSettingsScreen() {
+fun GameSettingsScreen(onAddGame: () -> Unit) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var localGames by remember { mutableStateOf(loadGameSettings(context)) }
     var cloudGames by remember { mutableStateOf<List<com.winlator.downloader.data.SupabaseGameSetting>>(emptyList()) }
-    var showAddDialog by remember { mutableStateOf(false) }
     var selectedLocalGame by remember { mutableStateOf<GameSetting?>(null) }
     var selectedCloudGame by remember { mutableStateOf<com.winlator.downloader.data.SupabaseGameSetting?>(null) }
     var tabIndex by remember { mutableIntStateOf(0) }
@@ -83,7 +82,7 @@ fun GameSettingsScreen() {
             }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(onClick = onAddGame) {
                 Icon(Icons.Default.Add, contentDescription = "Adicionar Jogo")
             }
         }
@@ -126,32 +125,26 @@ fun GameSettingsScreen() {
             }
         }
 
-        if (showAddDialog) {
-            GameEditDialog(
-                onDismiss = { showAddDialog = false },
-                onSave = { newGame ->
-                    localGames = localGames + newGame
-                    saveGameSettings(context, localGames)
-                    showAddDialog = false
-                }
-            )
-        }
-
         if (selectedLocalGame != null) {
+            val g = selectedLocalGame!!
             GameDetailDialog(
-                name = selectedLocalGame!!.name,
-                format = selectedLocalGame!!.format,
-                device = selectedLocalGame!!.device,
-                gamepad = selectedLocalGame!!.gamepad,
-                winlatorVersion = selectedLocalGame!!.winlatorVersion,
-                graphics = selectedLocalGame!!.graphics,
-                wine = selectedLocalGame!!.wine,
-                box64 = selectedLocalGame!!.box64,
-                box64Preset = selectedLocalGame!!.box64Preset,
-                resolution = selectedLocalGame!!.resolution,
-                gpuDriver = selectedLocalGame!!.gpuDriver,
-                dxvk = selectedLocalGame!!.dxvk,
-                audioDriver = selectedLocalGame!!.audioDriver,
+                name = g.name,
+                format = g.format,
+                device = g.device,
+                gamepad = g.gamepad,
+                winlatorVersion = g.winlatorVersion,
+                winlatorRepoOwner = g.winlatorRepoOwner,
+                winlatorRepoName = g.winlatorRepoName,
+                winlatorTagName = g.winlatorTagName,
+                winlatorAssetName = g.winlatorAssetName,
+                graphics = g.graphics,
+                wine = g.wine,
+                box64 = g.box64,
+                box64Preset = g.box64Preset,
+                resolution = g.resolution,
+                gpuDriver = g.gpuDriver,
+                dxvk = g.dxvk,
+                audioDriver = g.audioDriver,
                 submittedBy = "",
                 youtubeUrl = "",
                 isCloud = false,
@@ -170,7 +163,12 @@ fun GameSettingsScreen() {
                                 com.winlator.downloader.data.SupabaseClient.AUTH,
                                 com.winlator.downloader.data.SupabaseGameSetting(
                                     name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
-                                    winlatorVersion = g.winlatorVersion, graphics = g.graphics, wine = g.wine,
+                                    winlatorVersion = g.winlatorVersion,
+                                    winlatorRepoOwner = g.winlatorRepoOwner,
+                                    winlatorRepoName = g.winlatorRepoName,
+                                    winlatorTagName = g.winlatorTagName,
+                                    winlatorAssetName = g.winlatorAssetName,
+                                    graphics = g.graphics, wine = g.wine,
                                     box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
                                     gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
                                     submittedBy = submittedBy, youtubeUrl = youtubeUrl
@@ -189,7 +187,12 @@ fun GameSettingsScreen() {
             val g = selectedCloudGame!!
             GameDetailDialog(
                 name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
-                winlatorVersion = g.winlatorVersion, graphics = g.graphics, wine = g.wine,
+                winlatorVersion = g.winlatorVersion,
+                winlatorRepoOwner = g.winlatorRepoOwner,
+                winlatorRepoName = g.winlatorRepoName,
+                winlatorTagName = g.winlatorTagName,
+                winlatorAssetName = g.winlatorAssetName,
+                graphics = g.graphics, wine = g.wine,
                 box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
                 gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
                 submittedBy = g.submittedBy, youtubeUrl = g.youtubeUrl,
@@ -222,74 +225,27 @@ fun GameCard(name: String, subtitle: String, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GameEditDialog(onDismiss: () -> Unit, onSave: (GameSetting) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var format by remember { mutableStateOf("Pré instalado") }
-    var device by remember { mutableStateOf("") }
-    var gamepad by remember { mutableStateOf("Não") }
-    var winlatorVersion by remember { mutableStateOf("") }
-    var graphics by remember { mutableStateOf("") }
-    var wine by remember { mutableStateOf("") }
-    var box64 by remember { mutableStateOf("") }
-    var box64Preset by remember { mutableStateOf("") }
-    var resolution by remember { mutableStateOf("") }
-    var gpuDriver by remember { mutableStateOf("") }
-    var dxvk by remember { mutableStateOf("") }
-    var audioDriver by remember { mutableStateOf("alsa") }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(text = "Adicionar Jogo", style = MaterialTheme.typography.headlineSmall)
-
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome do Jogo") })
-                OutlinedTextField(value = format, onValueChange = { format = it }, label = { Text("Formato") })
-                OutlinedTextField(value = device, onValueChange = { device = it }, label = { Text("Dispositivo") })
-                OutlinedTextField(value = gamepad, onValueChange = { gamepad = it }, label = { Text("Gamepad Virtual") })
-                OutlinedTextField(value = winlatorVersion, onValueChange = { winlatorVersion = it }, label = { Text("Winlator Versão") })
-                OutlinedTextField(value = graphics, onValueChange = { graphics = it }, label = { Text("Gráficos") })
-                OutlinedTextField(value = wine, onValueChange = { wine = it }, label = { Text("Wine") })
-                OutlinedTextField(value = box64, onValueChange = { box64 = it }, label = { Text("BOX64") })
-                OutlinedTextField(value = box64Preset, onValueChange = { box64Preset = it }, label = { Text("BOX64 Preset") })
-                OutlinedTextField(value = resolution, onValueChange = { resolution = it }, label = { Text("Resolução") })
-                OutlinedTextField(value = gpuDriver, onValueChange = { gpuDriver = it }, label = { Text("GPU Driver") })
-                OutlinedTextField(value = dxvk, onValueChange = { dxvk = it }, label = { Text("DXVK/VKD3D") })
-                OutlinedTextField(value = audioDriver, onValueChange = { audioDriver = it }, label = { Text("Áudio Driver") })
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cancelar") }
-                    Button(onClick = {
-                        if (name.isNotBlank()) {
-                            onSave(GameSetting(
-                                name = name, format = format, device = device, gamepad = gamepad,
-                                winlatorVersion = winlatorVersion, graphics = graphics, wine = wine,
-                                box64 = box64, box64Preset = box64Preset, resolution = resolution,
-                                gpuDriver = gpuDriver, dxvk = dxvk, audioDriver = audioDriver
-                            ))
-                        }
-                    }) { Text("Salvar") }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun GameDetailDialog(
     name: String, format: String, device: String, gamepad: String, winlatorVersion: String,
+    winlatorRepoOwner: String, winlatorRepoName: String, winlatorTagName: String, winlatorAssetName: String,
     graphics: String, wine: String, box64: String, box64Preset: String, resolution: String,
     gpuDriver: String, dxvk: String, audioDriver: String, submittedBy: String, youtubeUrl: String,
     isCloud: Boolean, onDismiss: () -> Unit, onDelete: (() -> Unit)? = null,
     onSubmitToCloud: ((String, String, String) -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showSubmitDialog by remember { mutableStateOf(false) }
+
+    val githubService = remember {
+        retrofit2.Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+            .build()
+            .create(com.winlator.downloader.data.GitHubService::class.java)
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f)) {
@@ -300,6 +256,35 @@ fun GameDetailDialog(
                 Text(text = "📱 Dispositivo: $device")
                 Text(text = "🎮 Gamepad Virtual: $gamepad")
                 Text(text = "🪟 Winlator Versão: $winlatorVersion")
+
+                if (winlatorRepoOwner.isNotBlank() && winlatorRepoName.isNotBlank() && winlatorTagName.isNotBlank()) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    val releases = githubService.getReleases(winlatorRepoOwner, winlatorRepoName)
+                                    val release = releases.find { it.tagName == winlatorTagName }
+                                    val asset = release?.assets?.find { it.name == winlatorAssetName } ?: release?.assets?.firstOrNull { it.name.endsWith(".apk") }
+
+                                    if (asset != null) {
+                                        downloadFile(context, asset.downloadUrl, asset.name)
+                                    } else {
+                                        Toast.makeText(context, "Arquivo não encontrado", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Erro ao buscar versão", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    ) {
+                        Icon(Icons.Default.Download, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Baixar esta versão")
+                    }
+                }
+
                 Text(text = "📱 Gráfico do jogo: $graphics")
 
                 if (isCloud && submittedBy.isNotBlank()) {

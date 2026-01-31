@@ -3,11 +3,18 @@ package com.winlator.downloader.data
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.*
 
+data class SupabaseCategory(
+    val id: Int? = null,
+    val name: String
+)
+
 data class SupabaseRepo(
+    val id: Int? = null,
     val name: String,
     val owner: String,
     val repo: String,
-    val description: String
+    val description: String,
+    @SerializedName("category_id") val categoryId: Int? = null
 )
 
 data class AppConfig(
@@ -23,6 +30,11 @@ data class SupabaseGameSetting(
     val device: String = "",
     val gamepad: String = "Não",
     @SerializedName("winlator_version") val winlatorVersion: String = "",
+    @SerializedName("winlator_repo_owner") val winlatorRepoOwner: String = "",
+    @SerializedName("winlator_repo_name") val winlatorRepoName: String = "",
+    @SerializedName("winlator_tag_name") val winlatorTagName: String = "",
+    @SerializedName("winlator_asset_name") val winlatorAssetName: String = "",
+    @SerializedName("winlator_download_url") val winlatorDownloadUrl: String = "",
     val graphics: String = "",
     val wine: String = "",
     val box64: String = "",
@@ -37,6 +49,12 @@ data class SupabaseGameSetting(
 )
 
 interface SupabaseService {
+    @GET("rest/v1/categories?select=*")
+    suspend fun getCategories(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String
+    ): List<SupabaseCategory>
+
     @GET("rest/v1/repositories?select=*")
     suspend fun getRepositories(
         @Header("apikey") apiKey: String,

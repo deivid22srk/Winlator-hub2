@@ -1,6 +1,7 @@
 package com.winlator.downloader.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -11,5 +12,6 @@ sealed class NavigationItem(val route: String, val icon: ImageVector, val label:
     object Home : NavigationItem("home", Icons.Default.Home, "Início")
     object Downloads : NavigationItem("downloads", Icons.Default.Download, "Downloads")
     object GameSettings : NavigationItem("games", Icons.Default.VideogameAsset, "Jogos")
+    object AddGame : NavigationItem("add_game", Icons.Default.Add, "Adicionar Jogo")
     object Settings : NavigationItem("settings", Icons.Default.Settings, "Ajustes")
 }

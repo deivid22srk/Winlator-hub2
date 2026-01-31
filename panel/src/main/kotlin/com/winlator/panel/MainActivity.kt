@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.winlator.panel.data.*
 import com.winlator.panel.ui.theme.WinlatorPanelTheme
@@ -25,13 +26,75 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WinlatorPanelTheme {
+                var isLoggedIn by remember { mutableStateOf(false) }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PanelMainScreen()
+                    if (!isLoggedIn) {
+                        LoginScreen(onLoginSuccess = { isLoggedIn = true })
+                    } else {
+                        PanelMainScreen()
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun LoginScreen(onLoginSuccess: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val service = remember {
+        Retrofit.Builder()
+            .baseUrl(SupabaseClient.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(SupabaseService::class.java)
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Admin Panel Login", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(32.dp))
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = {
+                scope.launch {
+                    isLoading = true
+                    try {
+                        val resp = service.login(SupabaseClient.API_KEY, LoginRequest(email, password))
+                        SupabaseClient.authToken = resp.accessToken
+                        onLoginSuccess()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Erro no login: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                    isLoading = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
+        ) {
+            if (isLoading) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+            else Text("Login")
         }
     }
 }
@@ -40,6 +103,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PanelMainScreen() {
     val scope = rememberCoroutineScope()
+    var categories by remember { mutableStateOf<List<SupabaseCategory>>(emptyList()) }
     var repositories by remember { mutableStateOf<List<SupabaseRepo>>(emptyList()) }
     var appConfig by remember { mutableStateOf<AppConfig?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -57,8 +121,9 @@ fun PanelMainScreen() {
         scope.launch {
             isLoading = true
             try {
-                repositories = service.getRepositories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
-                appConfig = service.getAppConfig(SupabaseClient.API_KEY, SupabaseClient.AUTH).firstOrNull()
+                categories = service.getCategories(SupabaseClient.API_KEY, SupabaseClient.authHeader)
+                repositories = service.getRepositories(SupabaseClient.API_KEY, SupabaseClient.authHeader)
+                appConfig = service.getAppConfig(SupabaseClient.API_KEY, SupabaseClient.authHeader).firstOrNull()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -77,49 +142,69 @@ fun PanelMainScreen() {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, null) },
-                    label = { Text("Repos") },
+                    icon = { Icon(Icons.Default.Category, null) },
+                    label = { Text("Categorias") },
                     selected = tabIndex == 0,
                     onClick = { tabIndex = 0 }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.VideogameAsset, null) },
-                    label = { Text("Jogos") },
+                    icon = { Icon(Icons.Default.List, null) },
+                    label = { Text("Repos") },
                     selected = tabIndex == 1,
                     onClick = { tabIndex = 1 }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Settings, null) },
-                    label = { Text("Config") },
+                    icon = { Icon(Icons.Default.VideogameAsset, null) },
+                    label = { Text("Jogos") },
                     selected = tabIndex == 2,
                     onClick = { tabIndex = 2 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    label = { Text("Config") },
+                    selected = tabIndex == 3,
+                    onClick = { tabIndex = 3 }
                 )
             }
         },
         floatingActionButton = {
-            if (tabIndex == 0) {
+            if (tabIndex == 0 || tabIndex == 1) {
                 var showAddDialog by remember { mutableStateOf(false) }
                 FloatingActionButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Default.Add, null)
                 }
                 if (showAddDialog) {
-                    AddRepoDialog(
-                        onDismiss = { showAddDialog = false },
-                        onConfirm = { name, owner, repo, desc ->
-                            scope.launch {
-                                try {
-                                    service.createRepository(
-                                        SupabaseClient.API_KEY, SupabaseClient.AUTH,
-                                        SupabaseRepo(name = name, owner = owner, repo = repo, description = desc)
-                                    )
-                                    loadData()
-                                    showAddDialog = false
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
+                    if (tabIndex == 0) {
+                        AddCategoryDialog(
+                            onDismiss = { showAddDialog = false },
+                            onConfirm = { name ->
+                                scope.launch {
+                                    try {
+                                        service.createCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, SupabaseCategory(name = name))
+                                        loadData()
+                                        showAddDialog = false
+                                    } catch (e: Exception) { e.printStackTrace() }
                                 }
                             }
-                        }
-                    )
+                        )
+                    } else {
+                        AddRepoDialog(
+                            categories = categories,
+                            onDismiss = { showAddDialog = false },
+                            onConfirm = { name, owner, repo, desc, catId ->
+                                scope.launch {
+                                    try {
+                                        service.createRepository(
+                                            SupabaseClient.API_KEY, SupabaseClient.authHeader,
+                                            SupabaseRepo(name = name, owner = owner, repo = repo, description = desc, categoryId = catId)
+                                        )
+                                        loadData()
+                                        showAddDialog = false
+                                    } catch (e: Exception) { e.printStackTrace() }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -131,26 +216,23 @@ fun PanelMainScreen() {
         } else {
             Column(Modifier.padding(padding)) {
                 when (tabIndex) {
-                    0 -> RepoList(repositories, onDelete = { id ->
+                    0 -> CategoryList(categories)
+                    1 -> RepoList(repositories, categories, onDelete = { id ->
                         scope.launch {
                             try {
-                                service.deleteRepository(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.$id")
+                                service.deleteRepository(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
                                 loadData()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                            } catch (e: Exception) { e.printStackTrace() }
                         }
                     })
-                    1 -> GameSettingsAdminScreen(service)
-                    2 -> appConfig?.let { config ->
+                    2 -> GameSettingsAdminScreen(service)
+                    3 -> appConfig?.let { config ->
                         ConfigScreen(config, onUpdate = { updated ->
                             scope.launch {
                                 try {
-                                    service.updateAppConfig(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.1", updated)
+                                    service.updateAppConfig(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.1", updated)
                                     loadData()
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                } catch (e: Exception) { e.printStackTrace() }
                             }
                         })
                     }
@@ -161,14 +243,31 @@ fun PanelMainScreen() {
 }
 
 @Composable
-fun RepoList(repos: List<SupabaseRepo>, onDelete: (Int) -> Unit) {
+fun CategoryList(categories: List<SupabaseCategory>) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(categories) { cat ->
+            Card(Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Category, null)
+                    Spacer(Modifier.width(16.dp))
+                    Text(cat.name, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RepoList(repos: List<SupabaseRepo>, categories: List<SupabaseCategory>, onDelete: (Int) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(repos) { repo ->
+            val catName = categories.find { it.id == repo.categoryId }?.name ?: "Sem Categoria"
             Card(Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(repo.name, style = MaterialTheme.typography.titleMedium)
                         Text("${repo.owner}/${repo.repo}", style = MaterialTheme.typography.bodySmall)
+                        Text("Categoria: $catName", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { repo.id?.let { onDelete(it) } }) {
                         Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
@@ -210,7 +309,7 @@ fun GameSettingsAdminScreen(service: SupabaseService) {
         scope.launch {
             isLoading = true
             try {
-                submissions = service.getAllGameSettings(SupabaseClient.API_KEY, SupabaseClient.AUTH)
+                submissions = service.getAllGameSettings(SupabaseClient.API_KEY, SupabaseClient.authHeader)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -243,21 +342,21 @@ fun GameSettingsAdminScreen(service: SupabaseService) {
                             if (game.status == "pending") {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", mapOf("status" to "approved"))
+                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "approved"))
                                         load()
                                     }
                                 }) { Icon(Icons.Default.Check, null, tint = androidx.compose.ui.graphics.Color(0xFF4CAF50)) }
 
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", mapOf("status" to "rejected"))
+                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "rejected"))
                                         load()
                                     }
                                 }) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
                             } else {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.deleteGameSetting(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}")
+                                        service.deleteGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}")
                                         load()
                                     }
                                 }) { Icon(Icons.Default.Delete, null) }
@@ -271,25 +370,62 @@ fun GameSettingsAdminScreen(service: SupabaseService) {
 }
 
 @Composable
-fun AddRepoDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, String) -> Unit) {
+fun AddCategoryDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nova Categoria") },
+        text = { OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }) },
+        confirmButton = { Button(onClick = { if(name.isNotBlank()) onConfirm(name) }) { Text("Adicionar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddRepoDialog(categories: List<SupabaseCategory>, onDismiss: () -> Unit, onConfirm: (String, String, String, String, Int?) -> Unit) {
     var name by remember { mutableStateOf("") }
     var owner by remember { mutableStateOf("") }
     var repo by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
+    var selectedCatId by remember { mutableStateOf<Int?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Novo Repositório") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp).also {  }) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") })
                 OutlinedTextField(value = owner, onValueChange = { owner = it }, label = { Text("Owner (GitHub)") })
                 OutlinedTextField(value = repo, onValueChange = { repo = it }, label = { Text("Repo (GitHub)") })
                 OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Descrição") })
+
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                    OutlinedTextField(
+                        value = categories.find { it.id == selectedCatId }?.name ?: "Selecionar Categoria",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Categoria") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor()
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat.name) },
+                                onClick = {
+                                    selectedCatId = cat.id
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(name, owner, repo, desc) }) { Text("Adicionar") }
+            Button(onClick = { onConfirm(name, owner, repo, desc, selectedCatId) }) { Text("Adicionar") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }

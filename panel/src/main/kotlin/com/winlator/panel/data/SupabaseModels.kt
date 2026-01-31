@@ -3,12 +3,18 @@ package com.winlator.panel.data
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.*
 
+data class SupabaseCategory(
+    val id: Int? = null,
+    val name: String
+)
+
 data class SupabaseRepo(
     val id: Int? = null,
     val name: String,
     val owner: String,
     val repo: String,
-    val description: String
+    val description: String,
+    @SerializedName("category_id") val categoryId: Int? = null
 )
 
 data class AppConfig(
@@ -25,6 +31,11 @@ data class SupabaseGameSetting(
     val device: String = "",
     val gamepad: String = "Não",
     @SerializedName("winlator_version") val winlatorVersion: String = "",
+    @SerializedName("winlator_repo_owner") val winlatorRepoOwner: String = "",
+    @SerializedName("winlator_repo_name") val winlatorRepoName: String = "",
+    @SerializedName("winlator_tag_name") val winlatorTagName: String = "",
+    @SerializedName("winlator_asset_name") val winlatorAssetName: String = "",
+    @SerializedName("winlator_download_url") val winlatorDownloadUrl: String = "",
     val graphics: String = "",
     val wine: String = "",
     val box64: String = "",
@@ -38,7 +49,37 @@ data class SupabaseGameSetting(
     val status: String = "pending"
 )
 
+// Auth Models
+data class LoginRequest(val email: String, val password: String)
+data class LoginResponse(
+    @SerializedName("access_token") val accessToken: String,
+    @SerializedName("user") val user: UserInfo
+)
+data class UserInfo(val id: String, val email: String)
+
 interface SupabaseService {
+    // Auth
+    @POST("auth/v1/token?grant_type=password")
+    suspend fun login(
+        @Header("apikey") apiKey: String,
+        @Body request: LoginRequest
+    ): LoginResponse
+
+    // Categories
+    @GET("rest/v1/categories?select=*")
+    suspend fun getCategories(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String
+    ): List<SupabaseCategory>
+
+    @POST("rest/v1/categories")
+    suspend fun createCategory(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Body category: SupabaseCategory
+    )
+
+    // Repositories
     @GET("rest/v1/repositories?select=*")
     suspend fun getRepositories(
         @Header("apikey") apiKey: String,
@@ -67,6 +108,7 @@ interface SupabaseService {
         @Query("id") id: String
     )
 
+    // App Config
     @GET("rest/v1/app_config?select=*")
     suspend fun getAppConfig(
         @Header("apikey") apiKey: String,
@@ -81,6 +123,7 @@ interface SupabaseService {
         @Body config: AppConfig
     )
 
+    // Game Settings
     @GET("rest/v1/game_settings?select=*")
     suspend fun getAllGameSettings(
         @Header("apikey") apiKey: String,
@@ -106,5 +149,6 @@ interface SupabaseService {
 object SupabaseClient {
     const val URL = "https://jbqaegcuitmqfwpsdazn.supabase.co/"
     const val API_KEY = "sb_publishable_TaCuv4LHD-oHAH_jEuqvyQ_BAqV9fbk"
-    const val AUTH = "Bearer $API_KEY"
+    var authToken: String = ""
+    val authHeader get() = if (authToken.isEmpty()) "Bearer $API_KEY" else "Bearer $authToken"
 }

@@ -74,7 +74,8 @@ fun MainScreen() {
             NavHost(navController, startDestination = NavigationItem.Home.route) {
                 composable(NavigationItem.Home.route) { HomeScreen() }
                 composable(NavigationItem.Downloads.route) { DownloadScreen() }
-                composable(NavigationItem.GameSettings.route) { GameSettingsScreen() }
+                composable(NavigationItem.GameSettings.route) { GameSettingsScreen(onAddGame = { navController.navigate(NavigationItem.AddGame.route) }) }
+                composable(NavigationItem.AddGame.route) { AddGameScreen(onBack = { navController.popBackStack() }) }
                 composable(NavigationItem.Settings.route) { SettingsScreen() }
             }
         }
@@ -85,7 +86,9 @@ fun MainScreen() {
 @Composable
 fun HomeScreen() {
     var selectedRepo by remember { mutableStateOf<WinlatorRepo?>(null) }
-    var repositories by remember { mutableStateOf<List<WinlatorRepo>>(emptyList()) }
+    var selectedCategory by remember { mutableStateOf<SupabaseCategory?>(null) }
+    var categories by remember { mutableStateOf<List<SupabaseCategory>>(emptyList()) }
+    var repositories by remember { mutableStateOf<List<SupabaseRepo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
@@ -99,10 +102,8 @@ fun HomeScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            val remoteRepos = supabaseService.getRepositories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
-            repositories = remoteRepos.map {
-                WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description)
-            }
+            categories = supabaseService.getCategories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
+            repositories = supabaseService.getRepositories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -112,10 +113,16 @@ fun HomeScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(selectedRepo?.name ?: "Winlator Hub") },
+                title = {
+                    Text(selectedRepo?.name ?: selectedCategory?.name ?: "Winlator Hub")
+                },
                 navigationIcon = {
                     if (selectedRepo != null) {
                         IconButton(onClick = { selectedRepo = null }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        }
+                    } else if (selectedCategory != null) {
+                        IconButton(onClick = { selectedCategory = null }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                         }
                     }
@@ -132,13 +139,51 @@ fun HomeScreen() {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
+            } else if (selectedCategory == null) {
+                CategoryList(categories) { cat ->
+                    selectedCategory = cat
+                }
             } else if (selectedRepo == null) {
-                RepoList(repos = repositories) { repo ->
+                val filteredRepos = repositories.filter { it.categoryId == selectedCategory!!.id }
+                    .map { WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description) }
+
+                RepoList(repos = filteredRepos) { repo ->
                     selectedRepo = repo
                 }
             } else {
                 ReleaseList(repo = selectedRepo!!)
             }
+        }
+    }
+}
+
+@Composable
+fun CategoryList(categories: List<SupabaseCategory>, onCategoryClick: (SupabaseCategory) -> Unit) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(categories) { category ->
+            CategoryCard(category = category, onClick = { onCategoryClick(category) })
+        }
+    }
+}
+
+@Composable
+fun CategoryCard(category: SupabaseCategory, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Category, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(16.dp))
+            Text(category.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Default.ChevronRight, null)
         }
     }
 }
