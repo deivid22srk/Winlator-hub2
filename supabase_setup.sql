@@ -19,7 +19,9 @@ CREATE TABLE app_config (
     id INT PRIMARY KEY DEFAULT 1,
     dialog_title TEXT,
     dialog_message TEXT,
-    show_dialog BOOLEAN DEFAULT FALSE
+    show_dialog BOOLEAN DEFAULT FALSE,
+    is_update BOOLEAN DEFAULT FALSE,
+    update_url TEXT
 );
 
 -- Tabela para configurações de jogos (atualizada com campos de versão do winlator)

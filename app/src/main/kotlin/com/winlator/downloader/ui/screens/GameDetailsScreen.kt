@@ -98,8 +98,6 @@ fun GameDetailsScreen(
             HorizontalDivider()
 
             Text("Outras Informações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Formato: ${game.format}")
-            Text("Gamepad Virtual: ${game.gamepad}")
             Text("Resolução: ${game.resolution}")
             Text("Áudio: ${game.audioDriver}")
 
@@ -221,11 +219,21 @@ fun YouTubePlayer(videoId: String) {
     AndroidView(factory = { context ->
         WebView(context).apply {
             settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
-            loadUrl("https://www.youtube.com/embed/$videoId")
+            // Using a simple HTML to avoid some YouTube embedding issues
+            val html = """
+                <html>
+                    <body style="margin:0;padding:0;">
+                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/$videoId" frameborder="0" allowfullscreen></iframe>
+                    </body>
+                </html>
+            """.trimIndent()
+            loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
         }
     }, modifier = Modifier.fillMaxSize())
 }

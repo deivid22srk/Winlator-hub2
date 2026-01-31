@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -293,16 +295,49 @@ fun ConfigScreen(config: AppConfig, onUpdate: (AppConfig) -> Unit) {
     var title by remember { mutableStateOf(config.dialogTitle) }
     var message by remember { mutableStateOf(config.dialogMessage) }
     var showDialog by remember { mutableStateOf(config.showDialog) }
+    var isUpdate by remember { mutableStateOf(config.isUpdate) }
+    var updateUrl by remember { mutableStateOf(config.updateUrl) }
 
-    Column(Modifier.padding(16.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.padding(16.dp).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Startup Dialog", style = MaterialTheme.typography.titleLarge)
         OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = message, onValueChange = { message = it }, label = { Text("Message") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = showDialog, onCheckedChange = { showDialog = it })
             Text("Show Dialog on Hub Startup")
         }
-        Button(onClick = { onUpdate(config.copy(dialogTitle = title, dialogMessage = message, showDialog = showDialog)) }, modifier = Modifier.fillMaxWidth()) {
+
+        HorizontalDivider()
+
+        Text("Configuração de Atualização", style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = isUpdate, onCheckedChange = { isUpdate = it })
+            Text("Este é um diálogo de atualização?")
+        }
+
+        if (isUpdate) {
+            OutlinedTextField(
+                value = updateUrl,
+                onValueChange = { updateUrl = it },
+                label = { Text("URL do APK de Atualização") },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("https://...") }
+            )
+        }
+
+        Button(
+            onClick = {
+                onUpdate(config.copy(
+                    dialogTitle = title,
+                    dialogMessage = message,
+                    showDialog = showDialog,
+                    isUpdate = isUpdate,
+                    updateUrl = updateUrl
+                ))
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Salvar Configuração")
         }
     }

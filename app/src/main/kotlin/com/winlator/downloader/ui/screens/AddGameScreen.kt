@@ -27,6 +27,7 @@ fun AddGameScreen(onBack: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var device by remember { mutableStateOf("") }
     var graphics by remember { mutableStateOf("") }
+    var resolution by remember { mutableStateOf("") }
     var wineManual by remember { mutableStateOf("") }
     var box64Manual by remember { mutableStateOf("") }
     var gpuDriverManual by remember { mutableStateOf("") }
@@ -83,6 +84,7 @@ fun AddGameScreen(onBack: () -> Unit) {
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome do Jogo") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = device, onValueChange = { device = it }, label = { Text("Seu Dispositivo") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = graphics, onValueChange = { graphics = it }, label = { Text("Configuração Gráfica") }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Ex: Texturas Médio, Sombras Baixo") })
+            OutlinedTextField(value = resolution, onValueChange = { resolution = it }, label = { Text("Resolução") }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Ex: 854x480") })
 
             HorizontalDivider()
             GitHubFileSelector("Versão do Winlator", categories, repos, githubService) { winlatorSel = it }
