@@ -22,32 +22,25 @@ import retrofit2.converter.gson.GsonConverterFactory
 @Composable
 fun AddGameScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Form States
     var name by remember { mutableStateOf("") }
-    var format by remember { mutableStateOf("Pré instalado") }
     var device by remember { mutableStateOf("") }
-    var gamepad by remember { mutableStateOf("Não") }
     var graphics by remember { mutableStateOf("") }
-    var wine by remember { mutableStateOf("") }
-    var box64 by remember { mutableStateOf("") }
-    var box64Preset by remember { mutableStateOf("") }
-    var resolution by remember { mutableStateOf("") }
-    var gpuDriver by remember { mutableStateOf("") }
-    var dxvk by remember { mutableStateOf("") }
-    var audioDriver by remember { mutableStateOf("alsa") }
+    var wineManual by remember { mutableStateOf("") }
+    var box64Manual by remember { mutableStateOf("") }
+    var gpuDriverManual by remember { mutableStateOf("") }
+    var dxvkManual by remember { mutableStateOf("") }
 
-    // Version Selector States
+    // Selection States
+    var winlatorSel by remember { mutableStateOf(GitHubSelection()) }
+    var wineSel by remember { mutableStateOf(GitHubSelection()) }
+    var box64Sel by remember { mutableStateOf(GitHubSelection()) }
+    var gpuDriverSel by remember { mutableStateOf(GitHubSelection()) }
+    var dxvkSel by remember { mutableStateOf(GitHubSelection()) }
+
+    var categories by remember { mutableStateOf<List<SupabaseCategory>>(emptyList()) }
     var repos by remember { mutableStateOf<List<SupabaseRepo>>(emptyList()) }
-    var selectedRepo by remember { mutableStateOf<SupabaseRepo?>(null) }
-    var releases by remember { mutableStateOf<List<GitHubRelease>>(emptyList()) }
-    var selectedRelease by remember { mutableStateOf<GitHubRelease?>(null) }
-    var selectedAsset by remember { mutableStateOf<GitHubAsset?>(null) }
-
-    var repoExpanded by remember { mutableStateOf(false) }
-    var releaseExpanded by remember { mutableStateOf(false) }
-    var assetExpanded by remember { mutableStateOf(false) }
 
     val supabaseService = remember {
         Retrofit.Builder()
@@ -67,6 +60,7 @@ fun AddGameScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         try {
+            categories = supabaseService.getCategories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
             repos = supabaseService.getRepositories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
         } catch (e: Exception) { e.printStackTrace() }
     }
@@ -83,126 +77,93 @@ fun AddGameScreen(onBack: () -> Unit) {
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text("Configurações Básicas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Informações do Jogo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome do Jogo") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = device, onValueChange = { device = it }, label = { Text("Dispositivo") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = device, onValueChange = { device = it }, label = { Text("Seu Dispositivo") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = graphics, onValueChange = { graphics = it }, label = { Text("Configuração Gráfica") }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Ex: Texturas Médio, Sombras Baixo") })
 
             HorizontalDivider()
-            Text("Versão do Winlator", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            GitHubFileSelector("Versão do Winlator", categories, repos, githubService) { winlatorSel = it }
 
-            // Repo Selector
-            ExposedDropdownMenuBox(expanded = repoExpanded, onExpandedChange = { repoExpanded = !repoExpanded }) {
-                OutlinedTextField(
-                    value = selectedRepo?.name ?: "Selecionar Repositório",
-                    onValueChange = {}, readOnly = true,
-                    label = { Text("Repositório") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = repoExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-                ExposedDropdownMenu(expanded = repoExpanded, onDismissRequest = { repoExpanded = false }) {
-                    repos.forEach { repo ->
-                        DropdownMenuItem(
-                            text = { Text(repo.name) },
-                            onClick = {
-                                selectedRepo = repo
-                                selectedRelease = null
-                                selectedAsset = null
-                                repoExpanded = false
-                                scope.launch {
-                                    try {
-                                        releases = githubService.getReleases(repo.owner, repo.repo)
-                                    } catch (e: Exception) { e.printStackTrace() }
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-
-            // Release Selector
-            if (selectedRepo != null) {
-                ExposedDropdownMenuBox(expanded = releaseExpanded, onExpandedChange = { releaseExpanded = !releaseExpanded }) {
-                    OutlinedTextField(
-                        value = selectedRelease?.tagName ?: "Selecionar Versão (Tag)",
-                        onValueChange = {}, readOnly = true,
-                        label = { Text("Versão") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = releaseExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = releaseExpanded, onDismissRequest = { releaseExpanded = false }) {
-                        releases.forEach { release ->
-                            DropdownMenuItem(
-                                text = { Text(release.tagName) },
-                                onClick = {
-                                    selectedRelease = release
-                                    selectedAsset = null
-                                    releaseExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Asset Selector
-            if (selectedRelease != null) {
-                ExposedDropdownMenuBox(expanded = assetExpanded, onExpandedChange = { assetExpanded = !assetExpanded }) {
-                    OutlinedTextField(
-                        value = selectedAsset?.name ?: "Selecionar Arquivo (APK)",
-                        onValueChange = {}, readOnly = true,
-                        label = { Text("Arquivo") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = assetExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = assetExpanded, onDismissRequest = { assetExpanded = false }) {
-                        selectedRelease!!.assets.forEach { asset ->
-                            DropdownMenuItem(
-                                text = { Text(asset.name) },
-                                onClick = {
-                                    selectedAsset = asset
-                                    assetExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+            HorizontalDivider()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Wine", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = wineManual, onValueChange = { wineManual = it }, label = { Text("Nome/Versão do Wine") }, modifier = Modifier.fillMaxWidth())
+                GitHubFileSelector("Ou selecione um arquivo de Wine", categories, repos, githubService) { wineSel = it }
             }
 
             HorizontalDivider()
-            Text("Configurações Avançadas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = wine, onValueChange = { wine = it }, label = { Text("Wine") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = box64, onValueChange = { box64 = it }, label = { Text("BOX64") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = gpuDriver, onValueChange = { gpuDriver = it }, label = { Text("GPU Driver") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = dxvk, onValueChange = { dxvk = it }, label = { Text("DXVK") }, modifier = Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("BOX64", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = box64Manual, onValueChange = { box64Manual = it }, label = { Text("Versão do BOX64") }, modifier = Modifier.fillMaxWidth())
+                GitHubFileSelector("Ou selecione um arquivo de BOX64", categories, repos, githubService) { box64Sel = it }
+            }
+
+            HorizontalDivider()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("GPU Driver", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = gpuDriverManual, onValueChange = { gpuDriverManual = it }, label = { Text("Nome do Driver") }, modifier = Modifier.fillMaxWidth())
+                GitHubFileSelector("Ou selecione um arquivo de Driver", categories, repos, githubService) { gpuDriverSel = it }
+            }
+
+            HorizontalDivider()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("DXVK / VKD3D", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(value = dxvkManual, onValueChange = { dxvkManual = it }, label = { Text("Versão do DXVK") }, modifier = Modifier.fillMaxWidth())
+                GitHubFileSelector("Ou selecione um arquivo de DXVK", categories, repos, githubService) { dxvkSel = it }
+            }
 
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
                     if (name.isNotBlank()) {
                         val newGame = GameSetting(
-                            name = name, format = format, device = device, gamepad = gamepad,
-                            winlatorVersion = selectedRelease?.tagName ?: "",
-                            winlatorRepoOwner = selectedRepo?.owner ?: "",
-                            winlatorRepoName = selectedRepo?.repo ?: "",
-                            winlatorTagName = selectedRelease?.tagName ?: "",
-                            winlatorAssetName = selectedAsset?.name ?: "",
-                            graphics = graphics, wine = wine, box64 = box64, box64Preset = box64Preset,
-                            resolution = resolution, gpuDriver = gpuDriver, dxvk = dxvk, audioDriver = audioDriver
+                            name = name, device = device, graphics = graphics,
+                            winlatorVersion = winlatorSel.release?.tagName ?: "",
+                            winlatorRepoOwner = winlatorSel.repo?.owner ?: "",
+                            winlatorRepoName = winlatorSel.repo?.repo ?: "",
+                            winlatorTagName = winlatorSel.release?.tagName ?: "",
+                            winlatorAssetName = winlatorSel.asset?.name ?: "",
+
+                            wine = wineManual.ifBlank { wineSel.release?.tagName ?: "" },
+                            wineRepoOwner = wineSel.repo?.owner ?: "",
+                            wineRepoName = wineSel.repo?.repo ?: "",
+                            wineTagName = wineSel.release?.tagName ?: "",
+                            wineAssetName = wineSel.asset?.name ?: "",
+
+                            box64 = box64Manual.ifBlank { box64Sel.release?.tagName ?: "" },
+                            box64RepoOwner = box64Sel.repo?.owner ?: "",
+                            box64RepoName = box64Sel.repo?.repo ?: "",
+                            box64TagName = box64Sel.release?.tagName ?: "",
+                            box64AssetName = box64Sel.asset?.name ?: "",
+
+                            gpuDriver = gpuDriverManual.ifBlank { gpuDriverSel.release?.tagName ?: "" },
+                            gpuDriverRepoOwner = gpuDriverSel.repo?.owner ?: "",
+                            gpuDriverRepoName = gpuDriverSel.repo?.repo ?: "",
+                            gpuDriverTagName = gpuDriverSel.release?.tagName ?: "",
+                            gpuDriverAssetName = gpuDriverSel.asset?.name ?: "",
+
+                            dxvk = dxvkManual.ifBlank { dxvkSel.release?.tagName ?: "" },
+                            dxvkRepoOwner = dxvkSel.repo?.owner ?: "",
+                            dxvkRepoName = dxvkSel.repo?.repo ?: "",
+                            dxvkTagName = dxvkSel.release?.tagName ?: "",
+                            dxvkAssetName = dxvkSel.asset?.name ?: ""
                         )
                         // Save locally
                         val current = loadGameSettings(context)
                         saveGameSettings(context, current + newGame)
 
-                        Toast.makeText(context, "Jogo adicionado!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Configuração salva!", Toast.LENGTH_SHORT).show()
                         onBack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium
+                shape = MaterialTheme.shapes.medium,
+                contentPadding = PaddingValues(16.dp)
             ) {
-                Text("Salvar Jogo")
+                Text("SALVAR CONFIGURAÇÃO")
             }
         }
     }

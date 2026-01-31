@@ -38,6 +38,7 @@ import java.io.File
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+    var selectedGameDetail by remember { mutableStateOf<SupabaseGameSetting?>(null) }
 
     Scaffold(
         bottomBar = {
@@ -74,8 +75,34 @@ fun MainScreen() {
             NavHost(navController, startDestination = NavigationItem.Home.route) {
                 composable(NavigationItem.Home.route) { HomeScreen() }
                 composable(NavigationItem.Downloads.route) { DownloadScreen() }
-                composable(NavigationItem.GameSettings.route) { GameSettingsScreen(onAddGame = { navController.navigate(NavigationItem.AddGame.route) }) }
+                composable(NavigationItem.GameSettings.route) {
+                    GameSettingsScreen(
+                        onAddGame = { navController.navigate(NavigationItem.AddGame.route) },
+                        onViewDetails = { game ->
+                            selectedGameDetail = game
+                            navController.navigate(NavigationItem.GameDetails.route)
+                        }
+                    )
+                }
                 composable(NavigationItem.AddGame.route) { AddGameScreen(onBack = { navController.popBackStack() }) }
+                composable(NavigationItem.GameDetails.route) {
+                    val context = LocalContext.current
+                    selectedGameDetail?.let { game ->
+                        GameDetailsScreen(
+                            game = game,
+                            onBack = { navController.popBackStack() },
+                            onDeleteLocal = if (game.status == "local") {
+                                {
+                                    val current = loadGameSettings(context)
+                                    // Match by name for deletion of local items in this simplified demo
+                                    saveGameSettings(context, current.filter { it.name != game.name })
+                                    navController.popBackStack()
+                                    Toast.makeText(context, "Excluído!", Toast.LENGTH_SHORT).show()
+                                }
+                            } else null
+                        )
+                    }
+                }
                 composable(NavigationItem.Settings.route) { SettingsScreen() }
             }
         }
@@ -90,7 +117,6 @@ fun HomeScreen() {
     var categories by remember { mutableStateOf<List<SupabaseCategory>>(emptyList()) }
     var repositories by remember { mutableStateOf<List<SupabaseRepo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
 
     val supabaseService = remember {
         Retrofit.Builder()

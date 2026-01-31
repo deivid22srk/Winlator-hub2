@@ -36,6 +36,22 @@ data class SupabaseGameSetting(
     @SerializedName("winlator_tag_name") val winlatorTagName: String = "",
     @SerializedName("winlator_asset_name") val winlatorAssetName: String = "",
     @SerializedName("winlator_download_url") val winlatorDownloadUrl: String = "",
+    @SerializedName("wine_repo_owner") val wineRepoOwner: String = "",
+    @SerializedName("wine_repo_name") val wineRepoName: String = "",
+    @SerializedName("wine_tag_name") val wineTagName: String = "",
+    @SerializedName("wine_asset_name") val wineAssetName: String = "",
+    @SerializedName("box64_repo_owner") val box64RepoOwner: String = "",
+    @SerializedName("box64_repo_name") val box64RepoName: String = "",
+    @SerializedName("box64_tag_name") val box64TagName: String = "",
+    @SerializedName("box64_asset_name") val box64AssetName: String = "",
+    @SerializedName("gpu_driver_repo_owner") val gpuDriverRepoOwner: String = "",
+    @SerializedName("gpu_driver_repo_name") val gpuDriverRepoName: String = "",
+    @SerializedName("gpu_driver_tag_name") val gpuDriverTagName: String = "",
+    @SerializedName("gpu_driver_asset_name") val gpuDriverAssetName: String = "",
+    @SerializedName("dxvk_repo_owner") val dxvkRepoOwner: String = "",
+    @SerializedName("dxvk_repo_name") val dxvkRepoName: String = "",
+    @SerializedName("dxvk_tag_name") val dxvkTagName: String = "",
+    @SerializedName("dxvk_asset_name") val dxvkAssetName: String = "",
     val graphics: String = "",
     val wine: String = "",
     val box64: String = "",
@@ -77,6 +93,13 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body category: SupabaseCategory
+    )
+
+    @DELETE("rest/v1/categories")
+    suspend fun deleteCategory(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Query("id") id: String
     )
 
     // Repositories

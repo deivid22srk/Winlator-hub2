@@ -25,16 +25,13 @@ import com.winlator.downloader.data.GameSetting
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameSettingsScreen(onAddGame: () -> Unit) {
+fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downloader.data.SupabaseGameSetting) -> Unit) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var localGames by remember { mutableStateOf(loadGameSettings(context)) }
     var cloudGames by remember { mutableStateOf<List<com.winlator.downloader.data.SupabaseGameSetting>>(emptyList()) }
-    var selectedLocalGame by remember { mutableStateOf<GameSetting?>(null) }
-    var selectedCloudGame by remember { mutableStateOf<com.winlator.downloader.data.SupabaseGameSetting?>(null) }
     var tabIndex by remember { mutableIntStateOf(0) }
     var isLoadingCloud by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     val supabaseService = remember {
         retrofit2.Retrofit.Builder()
@@ -104,7 +101,26 @@ fun GameSettingsScreen(onAddGame: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filteredGames) { game ->
-                        GameCard(name = game.name, subtitle = game.winlatorVersion, onClick = { selectedLocalGame = game })
+                        GameCard(name = game.name, subtitle = game.winlatorVersion, onClick = {
+                            onViewDetails(com.winlator.downloader.data.SupabaseGameSetting(
+                                name = game.name, device = game.device, graphics = game.graphics,
+                                winlatorVersion = game.winlatorVersion, winlatorRepoOwner = game.winlatorRepoOwner,
+                                winlatorRepoName = game.winlatorRepoName, winlatorTagName = game.winlatorTagName,
+                                winlatorAssetName = game.winlatorAssetName, wine = game.wine,
+                                wineRepoOwner = game.wineRepoOwner, wineRepoName = game.wineRepoName,
+                                wineTagName = game.wineTagName, wineAssetName = game.wineAssetName,
+                                box64 = game.box64, box64RepoOwner = game.box64RepoOwner,
+                                box64RepoName = game.box64RepoName, box64TagName = game.box64TagName,
+                                box64AssetName = game.box64AssetName, gpuDriver = game.gpuDriver,
+                                gpuDriverRepoOwner = game.gpuDriverRepoOwner, gpuDriverRepoName = game.gpuDriverRepoName,
+                                gpuDriverTagName = game.gpuDriverTagName, gpuDriverAssetName = game.gpuDriverAssetName,
+                                dxvk = game.dxvk, dxvkRepoOwner = game.dxvkRepoOwner,
+                                dxvkRepoName = game.dxvkRepoName, dxvkTagName = game.dxvkTagName,
+                                dxvkAssetName = game.dxvkAssetName, format = game.format,
+                                gamepad = game.gamepad, resolution = game.resolution, audioDriver = game.audioDriver,
+                                status = "local"
+                            ))
+                        })
                     }
                 }
             } else {
@@ -118,88 +134,13 @@ fun GameSettingsScreen(onAddGame: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(filteredGames) { game ->
-                            GameCard(name = game.name, subtitle = "Por: ${game.submittedBy}", onClick = { selectedCloudGame = game })
+                            GameCard(name = game.name, subtitle = "Por: ${game.submittedBy}", onClick = { onViewDetails(game) })
                         }
                     }
                 }
             }
         }
 
-        if (selectedLocalGame != null) {
-            val g = selectedLocalGame!!
-            GameDetailDialog(
-                name = g.name,
-                format = g.format,
-                device = g.device,
-                gamepad = g.gamepad,
-                winlatorVersion = g.winlatorVersion,
-                winlatorRepoOwner = g.winlatorRepoOwner,
-                winlatorRepoName = g.winlatorRepoName,
-                winlatorTagName = g.winlatorTagName,
-                winlatorAssetName = g.winlatorAssetName,
-                graphics = g.graphics,
-                wine = g.wine,
-                box64 = g.box64,
-                box64Preset = g.box64Preset,
-                resolution = g.resolution,
-                gpuDriver = g.gpuDriver,
-                dxvk = g.dxvk,
-                audioDriver = g.audioDriver,
-                submittedBy = "",
-                youtubeUrl = "",
-                isCloud = false,
-                onDismiss = { selectedLocalGame = null },
-                onDelete = {
-                    localGames = localGames.filter { it.id != selectedLocalGame!!.id }
-                    saveGameSettings(context, localGames)
-                    selectedLocalGame = null
-                },
-                onSubmitToCloud = { _, submittedBy, youtubeUrl ->
-                    scope.launch {
-                        try {
-                            val g = selectedLocalGame!!
-                            supabaseService.submitGameSetting(
-                                com.winlator.downloader.data.SupabaseClient.API_KEY,
-                                com.winlator.downloader.data.SupabaseClient.AUTH,
-                                com.winlator.downloader.data.SupabaseGameSetting(
-                                    name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
-                                    winlatorVersion = g.winlatorVersion,
-                                    winlatorRepoOwner = g.winlatorRepoOwner,
-                                    winlatorRepoName = g.winlatorRepoName,
-                                    winlatorTagName = g.winlatorTagName,
-                                    winlatorAssetName = g.winlatorAssetName,
-                                    graphics = g.graphics, wine = g.wine,
-                                    box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
-                                    gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
-                                    submittedBy = submittedBy, youtubeUrl = youtubeUrl
-                                )
-                            )
-                            Toast.makeText(context, "Enviado para análise!", Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Erro ao enviar", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            )
-        }
-
-        if (selectedCloudGame != null) {
-            val g = selectedCloudGame!!
-            GameDetailDialog(
-                name = g.name, format = g.format, device = g.device, gamepad = g.gamepad,
-                winlatorVersion = g.winlatorVersion,
-                winlatorRepoOwner = g.winlatorRepoOwner,
-                winlatorRepoName = g.winlatorRepoName,
-                winlatorTagName = g.winlatorTagName,
-                winlatorAssetName = g.winlatorAssetName,
-                graphics = g.graphics, wine = g.wine,
-                box64 = g.box64, box64Preset = g.box64Preset, resolution = g.resolution,
-                gpuDriver = g.gpuDriver, dxvk = g.dxvk, audioDriver = g.audioDriver,
-                submittedBy = g.submittedBy, youtubeUrl = g.youtubeUrl,
-                isCloud = true,
-                onDismiss = { selectedCloudGame = null }
-            )
-        }
     }
 }
 

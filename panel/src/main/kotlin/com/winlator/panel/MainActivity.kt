@@ -216,7 +216,14 @@ fun PanelMainScreen() {
         } else {
             Column(Modifier.padding(padding)) {
                 when (tabIndex) {
-                    0 -> CategoryList(categories)
+                    0 -> CategoryList(categories, onDelete = { id ->
+                        scope.launch {
+                            try {
+                                service.deleteCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
+                                loadData()
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                    })
                     1 -> RepoList(repositories, categories, onDelete = { id ->
                         scope.launch {
                             try {
@@ -243,14 +250,17 @@ fun PanelMainScreen() {
 }
 
 @Composable
-fun CategoryList(categories: List<SupabaseCategory>) {
+fun CategoryList(categories: List<SupabaseCategory>, onDelete: (Int) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(categories) { cat ->
             Card(Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Category, null)
                     Spacer(Modifier.width(16.dp))
-                    Text(cat.name, style = MaterialTheme.typography.titleMedium)
+                    Text(cat.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { cat.id?.let { onDelete(it) } }) {
+                        Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }

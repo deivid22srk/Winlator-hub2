@@ -35,6 +35,22 @@ CREATE TABLE game_settings (
     winlator_tag_name TEXT,   -- Para download automático
     winlator_asset_name TEXT, -- Para download automático
     winlator_download_url TEXT, -- URL direta se disponível
+    wine_repo_owner TEXT,
+    wine_repo_name TEXT,
+    wine_tag_name TEXT,
+    wine_asset_name TEXT,
+    box64_repo_owner TEXT,
+    box64_repo_name TEXT,
+    box64_tag_name TEXT,
+    box64_asset_name TEXT,
+    gpu_driver_repo_owner TEXT,
+    gpu_driver_repo_name TEXT,
+    gpu_driver_tag_name TEXT,
+    gpu_driver_asset_name TEXT,
+    dxvk_repo_owner TEXT,
+    dxvk_repo_name TEXT,
+    dxvk_tag_name TEXT,
+    dxvk_asset_name TEXT,
     graphics TEXT,
     wine TEXT,
     box64 TEXT,
