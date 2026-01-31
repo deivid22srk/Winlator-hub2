@@ -84,6 +84,29 @@ fun MainScreen() {
 @Composable
 fun HomeScreen() {
     var selectedRepo by remember { mutableStateOf<WinlatorRepo?>(null) }
+    var repositories by remember { mutableStateOf<List<WinlatorRepo>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    val supabaseService = remember {
+        Retrofit.Builder()
+            .baseUrl(SupabaseClient.URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(SupabaseService::class.java)
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            val remoteRepos = supabaseService.getRepositories(SupabaseClient.API_KEY, SupabaseClient.AUTH)
+            repositories = remoteRepos.map {
+                WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        isLoading = false
+    }
 
     Scaffold(
         topBar = {
@@ -104,8 +127,12 @@ fun HomeScreen() {
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
-            if (selectedRepo == null) {
-                RepoList(repos = WinlatorRepositories) { repo ->
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (selectedRepo == null) {
+                RepoList(repos = repositories) { repo ->
                     selectedRepo = repo
                 }
             } else {

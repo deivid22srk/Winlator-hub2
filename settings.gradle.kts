@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "WinlatorDownloader"
 include(":app")
+include(":panel")
