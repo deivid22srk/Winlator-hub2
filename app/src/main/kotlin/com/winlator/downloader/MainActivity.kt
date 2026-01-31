@@ -24,10 +24,14 @@ import com.winlator.downloader.ui.screens.downloadFile
 import com.winlator.downloader.ui.theme.WinlatorDownloaderTheme
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.google.android.gms.ads.MobileAds
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        MobileAds.initialize(this) {}
+
         setContent {
             WinlatorDownloaderTheme {
                 var showMainScreen by remember { mutableStateOf(isSetupComplete(this@MainActivity)) }

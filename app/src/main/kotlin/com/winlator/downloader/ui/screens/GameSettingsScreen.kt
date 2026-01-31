@@ -21,7 +21,10 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.window.Dialog
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import android.app.Activity
 import com.winlator.downloader.data.GameSetting
+import com.winlator.downloader.utils.BannerAd
+import com.winlator.downloader.utils.loadAndShowInterstitial
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,63 +87,71 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                placeholder = { Text("Pesquisar jogo...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
-            )
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        placeholder = { Text("Pesquisar jogo...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                    )
 
-            if (tabIndex == 0) {
-                val filteredGames = localGames.filter { it.name.contains(searchQuery, ignoreCase = true) }.reversed()
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredGames) { game ->
-                        GameCard(name = game.name, subtitle = "${game.winlatorVersion} | ${game.device}", onClick = {
-                            onViewDetails(com.winlator.downloader.data.SupabaseGameSetting(
-                                name = game.name, device = game.device, graphics = game.graphics,
-                                winlatorVersion = game.winlatorVersion, winlatorRepoOwner = game.winlatorRepoOwner,
-                                winlatorRepoName = game.winlatorRepoName, winlatorTagName = game.winlatorTagName,
-                                winlatorAssetName = game.winlatorAssetName, wine = game.wine,
-                                wineRepoOwner = game.wineRepoOwner, wineRepoName = game.wineRepoName,
-                                wineTagName = game.wineTagName, wineAssetName = game.wineAssetName,
-                                box64 = game.box64, box64RepoOwner = game.box64RepoOwner,
-                                box64RepoName = game.box64RepoName, box64TagName = game.box64TagName,
-                                box64AssetName = game.box64AssetName, gpuDriver = game.gpuDriver,
-                                gpuDriverRepoOwner = game.gpuDriverRepoOwner, gpuDriverRepoName = game.gpuDriverRepoName,
-                                gpuDriverTagName = game.gpuDriverTagName, gpuDriverAssetName = game.gpuDriverAssetName,
-                                dxvk = game.dxvk, dxvkRepoOwner = game.dxvkRepoOwner,
-                                dxvkRepoName = game.dxvkRepoName, dxvkTagName = game.dxvkTagName,
-                                dxvkAssetName = game.dxvkAssetName, format = game.format,
-                                gamepad = game.gamepad, resolution = game.resolution, audioDriver = game.audioDriver,
-                                status = "local"
-                            ))
-                        })
-                    }
-                }
-            } else {
-                if (isLoadingCloud) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                } else {
-                    val filteredGames = cloudGames.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(filteredGames) { game ->
-                            GameCard(name = game.name, subtitle = "${game.device} | Por: ${game.submittedBy}", onClick = { onViewDetails(game) })
+                    if (tabIndex == 0) {
+                        val filteredGames = localGames.filter { it.name.contains(searchQuery, ignoreCase = true) }.reversed()
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(filteredGames) { game ->
+                                GameCard(name = game.name, subtitle = "${game.winlatorVersion} | ${game.device}", onClick = {
+                                    (context as? Activity)?.let { loadAndShowInterstitial(it) }
+                                    onViewDetails(com.winlator.downloader.data.SupabaseGameSetting(
+                                        name = game.name, device = game.device, graphics = game.graphics,
+                                        winlatorVersion = game.winlatorVersion, winlatorRepoOwner = game.winlatorRepoOwner,
+                                        winlatorRepoName = game.winlatorRepoName, winlatorTagName = game.winlatorTagName,
+                                        winlatorAssetName = game.winlatorAssetName, wine = game.wine,
+                                        wineRepoOwner = game.wineRepoOwner, wineRepoName = game.wineRepoName,
+                                        wineTagName = game.wineTagName, wineAssetName = game.wineAssetName,
+                                        box64 = game.box64, box64RepoOwner = game.box64RepoOwner,
+                                        box64RepoName = game.box64RepoName, box64TagName = game.box64TagName,
+                                        box64AssetName = game.box64AssetName, gpuDriver = game.gpuDriver,
+                                        gpuDriverRepoOwner = game.gpuDriverRepoOwner, gpuDriverRepoName = game.gpuDriverRepoName,
+                                        gpuDriverTagName = game.gpuDriverTagName, gpuDriverAssetName = game.gpuDriverAssetName,
+                                        dxvk = game.dxvk, dxvkRepoOwner = game.dxvkRepoOwner,
+                                        dxvkRepoName = game.dxvkRepoName, dxvkTagName = game.dxvkTagName,
+                                        dxvkAssetName = game.dxvkAssetName, format = game.format,
+                                        gamepad = game.gamepad, resolution = game.resolution, audioDriver = game.audioDriver,
+                                        status = "local"
+                                    ))
+                                })
+                            }
+                        }
+                    } else {
+                        if (isLoadingCloud) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        } else {
+                            val filteredGames = cloudGames.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(filteredGames) { game ->
+                                    GameCard(name = game.name, subtitle = "${game.device} | Por: ${game.submittedBy}", onClick = {
+                                        (context as? Activity)?.let { loadAndShowInterstitial(it) }
+                                        onViewDetails(game)
+                                    })
+                                }
+                            }
                         }
                     }
                 }
+                BannerAd()
             }
         }
-
     }
 }
 

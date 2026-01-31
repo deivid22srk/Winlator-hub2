@@ -28,8 +28,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import android.app.Activity
 import com.winlator.downloader.data.*
 import com.winlator.downloader.navigation.NavigationItem
+import com.winlator.downloader.utils.BannerAd
+import com.winlator.downloader.utils.loadAndShowInterstitial
 import kotlinx.coroutines.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -160,24 +163,29 @@ fun HomeScreen() {
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            if (isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (selectedCategory == null) {
-                CategoryList(categories) { cat ->
-                    selectedCategory = cat
-                }
-            } else if (selectedRepo == null) {
-                val filteredRepos = repositories.filter { it.categoryId == selectedCategory!!.id }
-                    .map { WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description) }
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.weight(1f)) {
+                    if (isLoading) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (selectedCategory == null) {
+                        CategoryList(categories) { cat ->
+                            selectedCategory = cat
+                        }
+                    } else if (selectedRepo == null) {
+                        val filteredRepos = repositories.filter { it.categoryId == selectedCategory!!.id }
+                            .map { WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description) }
 
-                RepoList(repos = filteredRepos) { repo ->
-                    selectedRepo = repo
+                        RepoList(repos = filteredRepos) { repo ->
+                            selectedRepo = repo
+                        }
+                    } else {
+                        ReleaseList(repo = selectedRepo!!)
+                    }
                 }
-            } else {
-                ReleaseList(repo = selectedRepo!!)
+                BannerAd()
             }
         }
     }
@@ -409,6 +417,7 @@ fun AssetItem(asset: GitHubAsset, onDownload: () -> Unit) {
 
 fun downloadFile(context: Context, url: String, fileName: String) {
     try {
+        (context as? Activity)?.let { loadAndShowInterstitial(it) }
         val subPath = getDownloadPath(context)
         val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$subPath/$fileName")
 
