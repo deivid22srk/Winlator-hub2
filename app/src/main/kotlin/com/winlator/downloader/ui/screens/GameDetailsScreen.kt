@@ -223,16 +223,27 @@ fun YouTubePlayer(videoId: String) {
             settings.mediaPlaybackRequiresUserGesture = false
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
+            settings.allowFileAccess = true
+            settings.allowContentAccess = true
+
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
-            // Using a simple HTML to avoid some YouTube embedding issues
+
             val html = """
+                <!DOCTYPE html>
                 <html>
-                    <body style="margin:0;padding:0;">
-                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/$videoId" frameborder="0" allowfullscreen></iframe>
-                    </body>
+                <head>
+                    <style>
+                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; }
+                        iframe { width: 100%; height: 100%; border: none; }
+                    </style>
+                </head>
+                <body>
+                    <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </body>
                 </html>
             """.trimIndent()
+
             loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
         }
     }, modifier = Modifier.fillMaxSize())

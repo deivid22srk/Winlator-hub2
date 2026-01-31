@@ -171,6 +171,34 @@ interface SupabaseService {
     )
 }
 
+// Management API Models
+data class UsageResponse(
+    val data: UsageData
+)
+
+data class UsageData(
+    val dbSize: UsageStat? = null,
+    val authUsers: UsageStat? = null,
+    val storageSize: UsageStat? = null,
+    @SerializedName("rest_requests") val restRequests: UsageStat? = null,
+    @SerializedName("auth_requests") val authRequests: UsageStat? = null,
+    @SerializedName("storage_requests") val storageRequests: UsageStat? = null,
+    @SerializedName("realtime_requests") val realtimeRequests: UsageStat? = null
+)
+
+data class UsageStat(
+    val usage: Long,
+    val limit: Long? = null
+)
+
+interface SupabaseManagementService {
+    @GET("v1/projects/{ref}/usage")
+    suspend fun getProjectUsage(
+        @Header("Authorization") auth: String,
+        @Path("ref") projectRef: String
+    ): UsageResponse
+}
+
 object SupabaseClient {
     const val URL = "https://jbqaegcuitmqfwpsdazn.supabase.co/"
     const val API_KEY = "sb_publishable_TaCuv4LHD-oHAH_jEuqvyQ_BAqV9fbk"
