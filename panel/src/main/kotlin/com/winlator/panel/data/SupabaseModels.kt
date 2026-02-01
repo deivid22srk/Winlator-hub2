@@ -19,11 +19,11 @@ data class SupabaseRepo(
 
 data class AppConfig(
     val id: Int = 1,
-    @SerializedName("dialog_title") val dialogTitle: String,
-    @SerializedName("dialog_message") val dialogMessage: String,
-    @SerializedName("show_dialog") val showDialog: Boolean,
-    @SerializedName("is_update") val isUpdate: Boolean = false,
-    @SerializedName("update_url") val updateUrl: String = ""
+    @SerializedName("dialog_title") val dialogTitle: String? = "",
+    @SerializedName("dialog_message") val dialogMessage: String? = "",
+    @SerializedName("show_dialog") val showDialog: Boolean? = false,
+    @SerializedName("is_update") val isUpdate: Boolean? = false,
+    @SerializedName("update_url") val updateUrl: String? = ""
 )
 
 data class SupabaseGameSetting(
