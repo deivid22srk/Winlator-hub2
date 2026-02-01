@@ -15,6 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun SettingsScreen() {
@@ -84,6 +88,38 @@ fun SettingsScreen() {
                         text = "Os arquivos baixados podem ser acessados pelo seu gerenciador de arquivos na pasta Downloads.",
                         style = MaterialTheme.typography.bodyMedium
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            HorizontalDivider()
+
+            Text(text = "Sobre", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+            val hailGamesUri = "https://youtube.com/@hail-games"
+            val hailGamesIntent = remember {
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(hailGamesUri))
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable { context.startActivity(hailGamesIntent) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AsyncImage(
+                        model = "https://yt3.googleusercontent.com/3qxFKrt02JDd4J1gL2kjGeZF8cJjJ5AVt78e9YbCzv2bRWGT-flh0d-iE4iT21U7_WjpJosR=s160-c-k-c0x00ffffff-no-rj",
+                        contentDescription = "HailGames Logo",
+                        modifier = Modifier.size(64.dp).clip(CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(text = "App feito por HailGames", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(text = "Clique para visitar o canal", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
 

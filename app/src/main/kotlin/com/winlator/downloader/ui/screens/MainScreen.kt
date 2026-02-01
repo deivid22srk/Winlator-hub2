@@ -31,8 +31,6 @@ import androidx.navigation.compose.rememberNavController
 import android.app.Activity
 import com.winlator.downloader.data.*
 import com.winlator.downloader.navigation.NavigationItem
-import com.winlator.downloader.utils.BannerAd
-import com.winlator.downloader.utils.loadAndShowInterstitial
 import kotlinx.coroutines.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -185,7 +183,6 @@ fun HomeScreen() {
                         ReleaseList(repo = selectedRepo!!)
                     }
                 }
-                BannerAd()
             }
         }
     }
@@ -417,7 +414,6 @@ fun AssetItem(asset: GitHubAsset, onDownload: () -> Unit) {
 
 fun downloadFile(context: Context, url: String, fileName: String) {
     try {
-        (context as? Activity)?.let { loadAndShowInterstitial(it) }
         val subPath = getDownloadPath(context)
         val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "$subPath/$fileName")
 

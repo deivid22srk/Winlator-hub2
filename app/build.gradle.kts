@@ -20,10 +20,24 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // These can be provided via environment variables or local.properties
+            storeFile = file(project.findProperty("RELEASE_STORE_FILE") as? String ?: "keystore.jks")
+            storePassword = project.findProperty("RELEASE_STORE_PASSWORD") as? String ?: ""
+            keyAlias = project.findProperty("RELEASE_KEY_ALIAS") as? String ?: ""
+            keyPassword = project.findProperty("RELEASE_KEY_PASSWORD") as? String ?: ""
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Apply signing config only if the keystore file exists
+            if (signingConfigs.getByName("release").storeFile?.exists() == true) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -69,9 +83,6 @@ dependencies {
 
     // Download Manager / Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
-    // AdMob
-    implementation("com.google.android.gms:play-services-ads:23.0.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

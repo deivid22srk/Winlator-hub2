@@ -334,6 +334,7 @@ fun ConfigScreen(config: AppConfig, prefs: android.content.SharedPreferences, on
     var showDialog by remember { mutableStateOf(config.showDialog ?: false) }
     var isUpdate by remember { mutableStateOf(config.isUpdate ?: false) }
     var updateUrl by remember { mutableStateOf(config.updateUrl ?: "") }
+    var latestVersion by remember { mutableStateOf(config.latestVersion?.toString() ?: "1") }
 
     var mgmtToken by remember { mutableStateOf(prefs.getString("mgmt_token", "") ?: "") }
     var projectRef by remember { mutableStateOf(prefs.getString("project_ref", "jbqaegcuitmqfwpsdazn") ?: "jbqaegcuitmqfwpsdazn") }
@@ -363,6 +364,13 @@ fun ConfigScreen(config: AppConfig, prefs: android.content.SharedPreferences, on
                 label = { Text("URL do APK de Atualização") },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("https://...") }
+            )
+            OutlinedTextField(
+                value = latestVersion,
+                onValueChange = { latestVersion = it },
+                label = { Text("Versão da Atualização (Version Code)") },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Ex: 2") }
             )
         }
 
@@ -394,7 +402,8 @@ fun ConfigScreen(config: AppConfig, prefs: android.content.SharedPreferences, on
                     dialogMessage = message,
                     showDialog = showDialog,
                     isUpdate = isUpdate,
-                    updateUrl = updateUrl
+                    updateUrl = updateUrl,
+                    latestVersion = latestVersion.toIntOrNull() ?: 1
                 ))
             },
             modifier = Modifier.fillMaxWidth()

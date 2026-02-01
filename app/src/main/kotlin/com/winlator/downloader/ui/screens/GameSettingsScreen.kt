@@ -23,8 +23,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import android.app.Activity
 import com.winlator.downloader.data.GameSetting
-import com.winlator.downloader.utils.BannerAd
-import com.winlator.downloader.utils.loadAndShowInterstitial
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +105,6 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
                         ) {
                             items(filteredGames) { game ->
                                 GameCard(name = game.name, subtitle = "${game.winlatorVersion} | ${game.device}", onClick = {
-                                    (context as? Activity)?.let { loadAndShowInterstitial(it) }
                                     onViewDetails(com.winlator.downloader.data.SupabaseGameSetting(
                                         name = game.name, device = game.device, graphics = game.graphics,
                                         winlatorVersion = game.winlatorVersion, winlatorRepoOwner = game.winlatorRepoOwner,
@@ -141,7 +138,6 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
                             ) {
                                 items(filteredGames) { game ->
                                     GameCard(name = game.name, subtitle = "${game.device} | Por: ${game.submittedBy}", onClick = {
-                                        (context as? Activity)?.let { loadAndShowInterstitial(it) }
                                         onViewDetails(game)
                                     })
                                 }
@@ -149,7 +145,6 @@ fun GameSettingsScreen(onAddGame: () -> Unit, onViewDetails: (com.winlator.downl
                         }
                     }
                 }
-                BannerAd()
             }
         }
     }
