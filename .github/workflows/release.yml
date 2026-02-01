@@ -1,7 +1,10 @@
 name: Android Release CI
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
