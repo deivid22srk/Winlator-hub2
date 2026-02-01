@@ -22,7 +22,8 @@ data class AppConfig(
     @SerializedName("dialog_message") val dialogMessage: String,
     @SerializedName("show_dialog") val showDialog: Boolean,
     @SerializedName("is_update") val isUpdate: Boolean = false,
-    @SerializedName("update_url") val updateUrl: String = ""
+    @SerializedName("update_url") val updateUrl: String = "",
+    @SerializedName("latest_version") val latestVersion: Int = 1
 )
 
 data class SupabaseGameSetting(

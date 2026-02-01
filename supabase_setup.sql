@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS app_config (
     dialog_message TEXT,
     show_dialog BOOLEAN DEFAULT FALSE,
     is_update BOOLEAN DEFAULT FALSE,
-    update_url TEXT
+    update_url TEXT,
+    latest_version INT DEFAULT 1
 );
 
 -- Tabela para configurações de jogos
@@ -72,8 +73,8 @@ INSERT INTO categories (name) VALUES ('Winlator'), ('Drivers'), ('Ferramentas'),
 ON CONFLICT (name) DO NOTHING;
 
 -- Inserir uma configuração padrão
-INSERT INTO app_config (id, dialog_title, dialog_message, show_dialog)
-VALUES (1, 'Bem-vindo', 'Este é o Winlator Hub oficial!', true)
+INSERT INTO app_config (id, dialog_title, dialog_message, show_dialog, latest_version)
+VALUES (1, 'Bem-vindo', 'Este é o Winlator Hub oficial!', true, 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- SEGURANÇA: Configurar RLS (Row Level Security)

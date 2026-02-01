@@ -24,13 +24,10 @@ import com.winlator.downloader.ui.screens.downloadFile
 import com.winlator.downloader.ui.theme.WinlatorDownloaderTheme
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import com.google.android.gms.ads.MobileAds
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        MobileAds.initialize(this) {}
 
         setContent {
             WinlatorDownloaderTheme {
@@ -47,9 +44,17 @@ class MainActivity : ComponentActivity() {
                             .create(SupabaseService::class.java)
 
                         val config = service.getAppConfig(SupabaseClient.API_KEY, SupabaseClient.AUTH).firstOrNull()
-                        if (config?.showDialog == true) {
-                            startupConfig = config
-                            showStartupDialog = true
+                        if (config != null && config.showDialog) {
+                            val currentVersionCode = packageManager.getPackageInfo(packageName, 0).versionCode
+                            if (config.isUpdate) {
+                                if (currentVersionCode < config.latestVersion) {
+                                    startupConfig = config
+                                    showStartupDialog = true
+                                }
+                            } else {
+                                startupConfig = config
+                                showStartupDialog = true
+                            }
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -76,11 +81,16 @@ class MainActivity : ComponentActivity() {
                             title = { Text(config.dialogTitle) },
                             text = { Text(config.dialogMessage) },
                             confirmButton = {
-                                if (config.isUpdate && config.updateUrl.isNotBlank()) {
-                                    Button(onClick = {
-                                        downloadFile(context, config.updateUrl, "WinlatorHub_Update.apk")
-                                        showStartupDialog = false
-                                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                                if (config.isUpdate) {
+                                    Button(
+                                        onClick = {
+                                            if (config.updateUrl.isNotBlank()) {
+                                                downloadFile(context, config.updateUrl, "WinlatorHub_Update.apk")
+                                            }
+                                            showStartupDialog = false
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
                                         Text("Baixar Atualização")
                                     }
                                 } else {
