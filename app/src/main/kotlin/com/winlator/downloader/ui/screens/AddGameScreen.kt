@@ -99,8 +99,8 @@ fun AddGameScreen(onBack: () -> Unit) {
             HorizontalDivider()
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("BOX64", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                OutlinedTextField(value = box64Manual, onValueChange = { box64Manual = it }, label = { Text("Versão do BOX64") }, modifier = Modifier.fillMaxWidth())
-                GitHubFileSelector("Ou selecione um arquivo de BOX64", categories, repos, githubService) { box64Sel = it }
+                OutlinedTextField(value = box64Manual, onValueChange = { box64Manual = it }, label = { Text("Versão do BOX64/Fexcore") }, modifier = Modifier.fillMaxWidth())
+                GitHubFileSelector("Ou selecione um arquivo de BOX64/Fexcore", categories, repos, githubService) { box64Sel = it }
             }
 
             HorizontalDivider()

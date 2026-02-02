@@ -243,8 +243,8 @@ fun GameDetailDialog(
 
                 HorizontalDivider()
                 Text(text = "🍷 Wine: $wine")
-                Text(text = "🔧 BOX64: $box64")
-                Text(text = "🔧 BOX64 Preset: $box64Preset")
+                Text(text = "🔧 BOX64/Fexcore: $box64")
+                Text(text = "🔧 BOX64/Fexcore Preset: $box64Preset")
                 HorizontalDivider()
                 Text(text = "🔧 Edit Container")
                 Text(text = "🔧 Resolução: $resolution")

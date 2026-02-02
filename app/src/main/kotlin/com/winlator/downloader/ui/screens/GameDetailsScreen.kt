@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.winlator.downloader.data.*
+import com.winlator.downloader.utils.UserUtils
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import android.widget.Toast
@@ -30,6 +31,7 @@ fun GameDetailsScreen(
     onDeleteLocal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val userId = remember { UserUtils.getUserId(context) }
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -48,6 +50,42 @@ fun GameDetailsScreen(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SupabaseService::class.java)
+    }
+
+    var likes by remember { mutableIntStateOf(game.likesCount) }
+    var dislikes by remember { mutableIntStateOf(game.dislikesCount) }
+    var userVote by remember { mutableIntStateOf(0) } // 1: like, -1: dislike, 0: none
+
+    LaunchedEffect(game.id) {
+        if (game.id != null) {
+            try {
+                val votes = supabaseService.getUserVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
+                userVote = votes.firstOrNull()?.voteType ?: 0
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun handleVote(type: Int) {
+        if (game.id == null) return
+        scope.launch {
+            try {
+                if (userVote == type) {
+                    // Remove vote
+                    supabaseService.deleteVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
+                    if (type == 1) likes-- else dislikes--
+                    userVote = 0
+                } else {
+                    // Add/Change vote
+                    val oldVote = userVote
+                    supabaseService.vote(SupabaseClient.API_KEY, SupabaseClient.AUTH, vote = SupabaseVote(game.id, userId, type))
+                    if (type == 1) likes++ else dislikes++
+                    if (oldVote == 1) likes-- else if (oldVote == -1) dislikes--
+                    userVote = type
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro ao votar", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Scaffold(
@@ -81,7 +119,21 @@ fun GameDetailsScreen(
                 }
             }
 
-            Text("CONFIGURAÇÕES DO JOGO", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("CONFIGURAÇÕES DO JOGO", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                if (game.status != "local") {
+                    IconButton(onClick = { handleVote(1) }) {
+                        Icon(if (userVote == 1) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt, null, tint = if (userVote == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text("$likes", style = MaterialTheme.typography.labelLarge)
+
+                    IconButton(onClick = { handleVote(-1) }) {
+                        Icon(if (userVote == -1) Icons.Default.ThumbDown else Icons.Default.ThumbDownOffAlt, null, tint = if (userVote == -1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text("$dislikes", style = MaterialTheme.typography.labelLarge)
+                }
+            }
 
             InfoCard(title = "Dispositivo", content = game.device, icon = Icons.Default.PhoneAndroid)
             InfoCard(title = "Gráficos", content = game.graphics, icon = Icons.Default.GraphicEq)
@@ -91,7 +143,7 @@ fun GameDetailsScreen(
             // Components with Download buttons
             ComponentDownloadItem("Winlator", game.winlatorVersion, game.winlatorRepoOwner, game.winlatorRepoName, game.winlatorTagName, game.winlatorAssetName, githubService)
             ComponentDownloadItem("Wine", game.wine, game.wineRepoOwner, game.wineRepoName, game.wineTagName, game.wineAssetName, githubService)
-            ComponentDownloadItem("BOX64", game.box64, game.box64RepoOwner, game.box64RepoName, game.box64TagName, game.box64AssetName, githubService)
+            ComponentDownloadItem("BOX64/Fexcore", game.box64, game.box64RepoOwner, game.box64RepoName, game.box64TagName, game.box64AssetName, githubService)
             ComponentDownloadItem("GPU Driver", game.gpuDriver, game.gpuDriverRepoOwner, game.gpuDriverRepoName, game.gpuDriverTagName, game.gpuDriverAssetName, githubService)
             ComponentDownloadItem("DXVK", game.dxvk, game.dxvkRepoOwner, game.dxvkRepoName, game.dxvkTagName, game.dxvkAssetName, githubService)
 

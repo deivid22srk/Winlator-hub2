@@ -66,7 +66,15 @@ data class SupabaseGameSetting(
     @SerializedName("audio_driver") val audioDriver: String = "alsa",
     @SerializedName("submitted_by") val submittedBy: String = "",
     @SerializedName("youtube_url") val youtubeUrl: String = "",
-    val status: String = "pending"
+    val status: String = "pending",
+    @SerializedName("likes_count") val likesCount: Int = 0,
+    @SerializedName("dislikes_count") val dislikesCount: Int = 0
+)
+
+data class SupabaseVote(
+    @SerializedName("game_setting_id") val gameSettingId: Int,
+    @SerializedName("user_id") val userId: String,
+    @SerializedName("vote_type") val voteType: Int
 )
 
 interface SupabaseService {
@@ -99,6 +107,30 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body setting: SupabaseGameSetting
+    ): Response<ResponseBody>
+
+    @GET("rest/v1/game_settings_votes?select=*")
+    suspend fun getUserVote(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Query("game_setting_id") gameSettingId: String,
+        @Query("user_id") userId: String
+    ): List<SupabaseVote>
+
+    @POST("rest/v1/game_settings_votes")
+    suspend fun vote(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Header("Prefer") prefer: String = "resolution=merge-duplicates",
+        @Body vote: SupabaseVote
+    ): Response<ResponseBody>
+
+    @DELETE("rest/v1/game_settings_votes")
+    suspend fun deleteVote(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") auth: String,
+        @Query("game_setting_id") gameSettingId: String,
+        @Query("user_id") userId: String
     ): Response<ResponseBody>
 }
 
