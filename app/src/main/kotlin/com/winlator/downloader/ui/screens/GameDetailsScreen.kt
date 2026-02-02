@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.winlator.downloader.data.*
 import com.winlator.downloader.utils.UserUtils
 import retrofit2.Retrofit
@@ -69,21 +72,32 @@ fun GameDetailsScreen(
         if (game.id == null) return
         scope.launch {
             try {
+                val oldVote = userVote
                 if (userVote == type) {
                     // Remove vote
-                    supabaseService.deleteVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
-                    if (type == 1) likes-- else dislikes--
-                    userVote = 0
+                    val resp = supabaseService.deleteVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
+                    if (resp.isSuccessful) {
+                        if (type == 1) likes-- else dislikes--
+                        userVote = 0
+                    } else {
+                        Toast.makeText(context, "Erro ao remover voto: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     // Add/Change vote
-                    val oldVote = userVote
-                    supabaseService.vote(SupabaseClient.API_KEY, SupabaseClient.AUTH, vote = SupabaseVote(game.id, userId, type))
-                    if (type == 1) likes++ else dislikes++
-                    if (oldVote == 1) likes-- else if (oldVote == -1) dislikes--
-                    userVote = type
+                    val resp = supabaseService.vote(SupabaseClient.API_KEY, SupabaseClient.AUTH, vote = SupabaseVote(game.id!!, userId, type))
+                    if (resp.isSuccessful) {
+                        if (type == 1) likes++ else dislikes++
+                        if (oldVote == 1) likes-- else if (oldVote == -1) dislikes--
+                        userVote = type
+                    } else {
+                        val errorMsg = resp.errorBody()?.string() ?: ""
+                        android.util.Log.e("VoteError", "Error: ${resp.code()} $errorMsg")
+                        Toast.makeText(context, "Erro ao votar: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Erro ao votar", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+                Toast.makeText(context, "Erro de conexão", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -272,79 +286,44 @@ fun ComponentDownloadItem(
 
 @Composable
 fun YouTubePlayer(videoId: String) {
-    AndroidView(factory = { context ->
-        WebView(context).apply {
-            layoutParams = android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                mediaPlaybackRequiresUserGesture = false
-                loadWithOverviewMode = true
-                useWideViewPort = true
-                allowFileAccess = true
-                allowContentAccess = true
-                databaseEnabled = true
-                javaScriptCanOpenWindowsAutomatically = true
-                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+    val context = LocalContext.current
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+
+    AndroidView(
+        factory = { ctx ->
+            YouTubePlayerView(ctx).apply {
+                lifecycleOwner.lifecycle.addObserver(this)
+                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
+                    override fun onReady(youTubePlayer: YouTubePlayer) {
+                        youTubePlayer.cueVideo(videoId, 0f)
+                    }
+                })
             }
-
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                    return false
-                }
-            }
-            webChromeClient = WebChromeClient()
-
-            val html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <style>
-                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; overflow: hidden; }
-                        .container { position: relative; width: 100%; height: 100%; }
-                        iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
-                                allow="autoplay; encrypted-media; picture-in-picture"
-                                allowfullscreen></iframe>
-                    </div>
-                </body>
-                </html>
-            """.trimIndent()
-
-            loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
-        }
-    }, modifier = Modifier.fillMaxSize())
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 fun extractYoutubeId(url: String): String? {
     if (url.isBlank()) return null
     val cleaned = url.trim()
     return try {
-        // Handle short links youtu.be/ID
+        // Most common pattern: https://youtu.be/zpguI-oucC0?si=...
         if (cleaned.contains("youtu.be/")) {
-            val parts = cleaned.split("youtu.be/")
-            if (parts.size > 1) parts[1].split("?")[0].split("/")[0] else null
+            cleaned.split("youtu.be/").last().split("?").first()
         }
-        // Handle standard watch?v=ID
+        // Standard pattern: https://www.youtube.com/watch?v=...
         else if (cleaned.contains("v=")) {
             cleaned.split("v=").last().split("&").first()
         }
-        // Handle embed links
+        // Embed pattern: https://www.youtube.com/embed/...
         else if (cleaned.contains("embed/")) {
-            cleaned.split("embed/").last().split("?").first().split("/").last()
+            cleaned.split("embed/").last().split("?").first()
         }
-        // Handle other common patterns with Regex
+        // Fallback with a more exhaustive regex
         else {
-            val pattern = "(?<=watch\\?v=|/videos/|embed/|youtu.be/|/v/|/e/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%2F|youtu.be%2F|%2Fv%2F)[^#&?\\s]*".toRegex()
-            pattern.find(cleaned)?.value
+            val pattern = "^(?:https?:\\/\\/)?(?:www\\.|m\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})(?:\\S+)?$".toRegex()
+            pattern.find(cleaned)?.groupValues?.get(1)
         }
     } catch (e: Exception) { null }
 }

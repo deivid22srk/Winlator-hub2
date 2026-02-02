@@ -115,4 +115,9 @@ object AppDownloadManager {
         _tasks.add(newTask)
         return newTask
     }
+
+    fun removeTask(task: DownloadTask) {
+        task.pause()
+        _tasks.remove(task)
+    }
 }

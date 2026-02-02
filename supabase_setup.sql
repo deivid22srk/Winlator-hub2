@@ -80,8 +80,8 @@ CREATE TABLE IF NOT EXISTS game_settings (
     youtube_url TEXT,
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    likes_count INT DEFAULT 0,
-    dislikes_count INT DEFAULT 0
+    likes_count INT NOT NULL DEFAULT 0,
+    dislikes_count INT NOT NULL DEFAULT 0
 );
 
 -- Migrações para game_settings
@@ -91,10 +91,18 @@ BEGIN
         ALTER TABLE game_settings ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='likes_count') THEN
-        ALTER TABLE game_settings ADD COLUMN likes_count INT DEFAULT 0;
+        ALTER TABLE game_settings ADD COLUMN likes_count INT NOT NULL DEFAULT 0;
+    ELSE
+        UPDATE game_settings SET likes_count = 0 WHERE likes_count IS NULL;
+        ALTER TABLE game_settings ALTER COLUMN likes_count SET NOT NULL;
+        ALTER TABLE game_settings ALTER COLUMN likes_count SET DEFAULT 0;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='dislikes_count') THEN
-        ALTER TABLE game_settings ADD COLUMN dislikes_count INT DEFAULT 0;
+        ALTER TABLE game_settings ADD COLUMN dislikes_count INT NOT NULL DEFAULT 0;
+    ELSE
+        UPDATE game_settings SET dislikes_count = 0 WHERE dislikes_count IS NULL;
+        ALTER TABLE game_settings ALTER COLUMN dislikes_count SET NOT NULL;
+        ALTER TABLE game_settings ALTER COLUMN dislikes_count SET DEFAULT 0;
     END IF;
 END $$;
 
@@ -124,9 +132,9 @@ BEGIN
         END IF;
     ELSIF (TG_OP = 'DELETE') THEN
         IF (OLD.vote_type = 1) THEN
-            UPDATE game_settings SET likes_count = likes_count - 1 WHERE id = OLD.game_setting_id;
+            UPDATE game_settings SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.game_setting_id;
         ELSE
-            UPDATE game_settings SET dislikes_count = dislikes_count - 1 WHERE id = OLD.game_setting_id;
+            UPDATE game_settings SET dislikes_count = GREATEST(0, dislikes_count - 1) WHERE id = OLD.game_setting_id;
         END IF;
     END IF;
     RETURN NULL;
