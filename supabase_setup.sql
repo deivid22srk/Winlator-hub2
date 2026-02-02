@@ -25,6 +25,20 @@ CREATE TABLE IF NOT EXISTS app_config (
     latest_version INT DEFAULT 1
 );
 
+-- Migrações para app_config (adicionar colunas se não existirem)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='latest_version') THEN
+        ALTER TABLE app_config ADD COLUMN latest_version INT DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='is_update') THEN
+        ALTER TABLE app_config ADD COLUMN is_update BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='update_url') THEN
+        ALTER TABLE app_config ADD COLUMN update_url TEXT;
+    END IF;
+END $$;
+
 -- Tabela para configurações de jogos
 CREATE TABLE IF NOT EXISTS game_settings (
     id SERIAL PRIMARY KEY,
@@ -65,8 +79,73 @@ CREATE TABLE IF NOT EXISTS game_settings (
     submitted_by TEXT,
     youtube_url TEXT,
     status TEXT DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    likes_count INT NOT NULL DEFAULT 0,
+    dislikes_count INT NOT NULL DEFAULT 0
 );
+
+-- Migrações para game_settings
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='created_at') THEN
+        ALTER TABLE game_settings ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='likes_count') THEN
+        ALTER TABLE game_settings ADD COLUMN likes_count INT NOT NULL DEFAULT 0;
+    ELSE
+        UPDATE game_settings SET likes_count = 0 WHERE likes_count IS NULL;
+        ALTER TABLE game_settings ALTER COLUMN likes_count SET NOT NULL;
+        ALTER TABLE game_settings ALTER COLUMN likes_count SET DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='dislikes_count') THEN
+        ALTER TABLE game_settings ADD COLUMN dislikes_count INT NOT NULL DEFAULT 0;
+    ELSE
+        UPDATE game_settings SET dislikes_count = 0 WHERE dislikes_count IS NULL;
+        ALTER TABLE game_settings ALTER COLUMN dislikes_count SET NOT NULL;
+        ALTER TABLE game_settings ALTER COLUMN dislikes_count SET DEFAULT 0;
+    END IF;
+END $$;
+
+-- Tabela de votos (Like/Dislike)
+CREATE TABLE IF NOT EXISTS game_settings_votes (
+    game_setting_id INT REFERENCES game_settings(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    vote_type INT NOT NULL, -- 1 para like, -1 para dislike
+    PRIMARY KEY (game_setting_id, user_id)
+);
+
+-- Trigger function para atualizar contadores de votos
+CREATE OR REPLACE FUNCTION update_game_setting_vote_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        IF (NEW.vote_type = 1) THEN
+            UPDATE game_settings SET likes_count = likes_count + 1 WHERE id = NEW.game_setting_id;
+        ELSE
+            UPDATE game_settings SET dislikes_count = dislikes_count + 1 WHERE id = NEW.game_setting_id;
+        END IF;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        IF (OLD.vote_type = 1 AND NEW.vote_type = -1) THEN
+            UPDATE game_settings SET likes_count = likes_count - 1, dislikes_count = dislikes_count + 1 WHERE id = NEW.game_setting_id;
+        ELSIF (OLD.vote_type = -1 AND NEW.vote_type = 1) THEN
+            UPDATE game_settings SET dislikes_count = dislikes_count - 1, likes_count = likes_count + 1 WHERE id = NEW.game_setting_id;
+        END IF;
+    ELSIF (TG_OP = 'DELETE') THEN
+        IF (OLD.vote_type = 1) THEN
+            UPDATE game_settings SET likes_count = GREATEST(0, likes_count - 1) WHERE id = OLD.game_setting_id;
+        ELSE
+            UPDATE game_settings SET dislikes_count = GREATEST(0, dislikes_count - 1) WHERE id = OLD.game_setting_id;
+        END IF;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger
+DROP TRIGGER IF EXISTS tr_update_vote_counts ON game_settings_votes;
+CREATE TRIGGER tr_update_vote_counts
+AFTER INSERT OR UPDATE OR DELETE ON game_settings_votes
+FOR EACH ROW EXECUTE FUNCTION update_game_setting_vote_counts();
 
 -- Inserir categorias padrão
 INSERT INTO categories (name) VALUES ('Winlator'), ('Drivers'), ('Ferramentas'), ('DXVK')
@@ -82,6 +161,7 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE repositories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_settings_votes ENABLE ROW LEVEL SECURITY;
 
 -- Helper function to safely create policies
 DO $$
@@ -131,5 +211,10 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated full access on game_settings' AND tablename = 'game_settings') THEN
         CREATE POLICY "Allow authenticated full access on game_settings" ON game_settings FOR ALL USING (auth.role() = 'authenticated');
+    END IF;
+
+    -- Votes
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public to manage own votes' AND tablename = 'game_settings_votes') THEN
+        CREATE POLICY "Allow public to manage own votes" ON game_settings_votes FOR ALL USING (true);
     END IF;
 END $$;

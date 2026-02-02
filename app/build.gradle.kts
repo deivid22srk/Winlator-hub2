@@ -81,6 +81,9 @@ dependencies {
     // Coil for images (if needed, but probably not for this app)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // YouTube Player
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0")
+
     // Download Manager / Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 

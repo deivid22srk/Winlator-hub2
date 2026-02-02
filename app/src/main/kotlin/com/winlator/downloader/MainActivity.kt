@@ -44,10 +44,11 @@ class MainActivity : ComponentActivity() {
                             .create(SupabaseService::class.java)
 
                         val config = service.getAppConfig(SupabaseClient.API_KEY, SupabaseClient.AUTH).firstOrNull()
-                        if (config != null && config.showDialog) {
+                        if (config != null && config.showDialog == true) {
                             val currentVersionCode = packageManager.getPackageInfo(packageName, 0).versionCode
-                            if (config.isUpdate) {
-                                if (currentVersionCode < config.latestVersion) {
+                            val latestVersion = config.latestVersion ?: 0
+                            if (config.isUpdate == true) {
+                                if (currentVersionCode < latestVersion) {
                                     startupConfig = config
                                     showStartupDialog = true
                                 }
@@ -78,14 +79,15 @@ class MainActivity : ComponentActivity() {
                         val context = LocalContext.current
                         AlertDialog(
                             onDismissRequest = { showStartupDialog = false },
-                            title = { Text(config.dialogTitle) },
-                            text = { Text(config.dialogMessage) },
+                            title = { Text(config.dialogTitle ?: "") },
+                            text = { Text(config.dialogMessage ?: "") },
                             confirmButton = {
-                                if (config.isUpdate) {
+                                if (config.isUpdate == true) {
                                     Button(
                                         onClick = {
-                                            if (config.updateUrl.isNotBlank()) {
-                                                downloadFile(context, config.updateUrl, "WinlatorHub_Update.apk")
+                                            val url = config.updateUrl
+                                            if (!url.isNullOrBlank()) {
+                                                downloadFile(context, url, "WinlatorHub_Update.apk")
                                             }
                                             showStartupDialog = false
                                         },
@@ -100,7 +102,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             dismissButton = {
-                                if (config.isUpdate) {
+                                if (config.isUpdate == true) {
                                     TextButton(onClick = { showStartupDialog = false }) {
                                         Text("Depois")
                                     }

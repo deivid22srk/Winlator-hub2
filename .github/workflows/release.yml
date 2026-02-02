@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
     steps:
     - name: Checkout the Repository
@@ -25,8 +27,8 @@ jobs:
       run: chmod +x gradlew
 
     - name: Decode Keystore
-      if: "${{ secrets.KEYSTORE_BASE64 != '' }}"
-      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+      if: env.KEYSTORE_BASE64 != ''
+      run: echo "${{ env.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
 
     - name: Build Hub Release APK
       run: |

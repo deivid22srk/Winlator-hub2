@@ -1,6 +1,8 @@
 package com.winlator.panel.data
 
 import com.google.gson.annotations.SerializedName
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.*
 
 data class SupabaseCategory(
@@ -96,14 +98,14 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body category: SupabaseCategory
-    )
+    ): Response<ResponseBody>
 
     @DELETE("rest/v1/categories")
     suspend fun deleteCategory(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<ResponseBody>
 
     // Repositories
     @GET("rest/v1/repositories?select=*")
@@ -117,7 +119,7 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body repo: SupabaseRepo
-    )
+    ): Response<ResponseBody>
 
     @PATCH("rest/v1/repositories")
     suspend fun updateRepository(
@@ -125,14 +127,14 @@ interface SupabaseService {
         @Header("Authorization") auth: String,
         @Query("id") id: String,
         @Body repo: SupabaseRepo
-    )
+    ): Response<ResponseBody>
 
     @DELETE("rest/v1/repositories")
     suspend fun deleteRepository(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<ResponseBody>
 
     // App Config
     @GET("rest/v1/app_config?select=*")
@@ -146,8 +148,8 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String,
-        @Body config: AppConfig
-    )
+        @Body config: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<ResponseBody>
 
     // Game Settings
     @GET("rest/v1/game_settings?select=*&order=id.desc")
@@ -161,15 +163,15 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String,
-        @Body setting: Map<String, String>
-    )
+        @Body setting: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<ResponseBody>
 
     @DELETE("rest/v1/game_settings")
     suspend fun deleteGameSetting(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<ResponseBody>
 }
 
 // Management API Models

@@ -16,7 +16,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.winlator.downloader.data.*
+import com.winlator.downloader.utils.UserUtils
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import android.widget.Toast
@@ -30,6 +34,7 @@ fun GameDetailsScreen(
     onDeleteLocal: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val userId = remember { UserUtils.getUserId(context) }
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -48,6 +53,53 @@ fun GameDetailsScreen(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SupabaseService::class.java)
+    }
+
+    var likes by remember { mutableIntStateOf(game.likesCount) }
+    var dislikes by remember { mutableIntStateOf(game.dislikesCount) }
+    var userVote by remember { mutableIntStateOf(0) } // 1: like, -1: dislike, 0: none
+
+    LaunchedEffect(game.id) {
+        if (game.id != null) {
+            try {
+                val votes = supabaseService.getUserVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
+                userVote = votes.firstOrNull()?.voteType ?: 0
+            } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    fun handleVote(type: Int) {
+        if (game.id == null) return
+        scope.launch {
+            try {
+                val oldVote = userVote
+                if (userVote == type) {
+                    // Remove vote
+                    val resp = supabaseService.deleteVote(SupabaseClient.API_KEY, SupabaseClient.AUTH, "eq.${game.id}", "eq.$userId")
+                    if (resp.isSuccessful) {
+                        if (type == 1) likes-- else dislikes--
+                        userVote = 0
+                    } else {
+                        Toast.makeText(context, "Erro ao remover voto: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    // Add/Change vote
+                    val resp = supabaseService.vote(SupabaseClient.API_KEY, SupabaseClient.AUTH, vote = SupabaseVote(game.id!!, userId, type))
+                    if (resp.isSuccessful) {
+                        if (type == 1) likes++ else dislikes++
+                        if (oldVote == 1) likes-- else if (oldVote == -1) dislikes--
+                        userVote = type
+                    } else {
+                        val errorMsg = resp.errorBody()?.string() ?: ""
+                        android.util.Log.e("VoteError", "Error: ${resp.code()} $errorMsg")
+                        Toast.makeText(context, "Erro ao votar: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Erro de conexão", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Scaffold(
@@ -81,7 +133,21 @@ fun GameDetailsScreen(
                 }
             }
 
-            Text("CONFIGURAÇÕES DO JOGO", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("CONFIGURAÇÕES DO JOGO", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                if (game.status != "local") {
+                    IconButton(onClick = { handleVote(1) }) {
+                        Icon(if (userVote == 1) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt, null, tint = if (userVote == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text("$likes", style = MaterialTheme.typography.labelLarge)
+
+                    IconButton(onClick = { handleVote(-1) }) {
+                        Icon(if (userVote == -1) Icons.Default.ThumbDown else Icons.Default.ThumbDownOffAlt, null, tint = if (userVote == -1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text("$dislikes", style = MaterialTheme.typography.labelLarge)
+                }
+            }
 
             InfoCard(title = "Dispositivo", content = game.device, icon = Icons.Default.PhoneAndroid)
             InfoCard(title = "Gráficos", content = game.graphics, icon = Icons.Default.GraphicEq)
@@ -91,7 +157,7 @@ fun GameDetailsScreen(
             // Components with Download buttons
             ComponentDownloadItem("Winlator", game.winlatorVersion, game.winlatorRepoOwner, game.winlatorRepoName, game.winlatorTagName, game.winlatorAssetName, githubService)
             ComponentDownloadItem("Wine", game.wine, game.wineRepoOwner, game.wineRepoName, game.wineTagName, game.wineAssetName, githubService)
-            ComponentDownloadItem("BOX64", game.box64, game.box64RepoOwner, game.box64RepoName, game.box64TagName, game.box64AssetName, githubService)
+            ComponentDownloadItem("BOX64/Fexcore", game.box64, game.box64RepoOwner, game.box64RepoName, game.box64TagName, game.box64AssetName, githubService)
             ComponentDownloadItem("GPU Driver", game.gpuDriver, game.gpuDriverRepoOwner, game.gpuDriverRepoName, game.gpuDriverTagName, game.gpuDriverAssetName, githubService)
             ComponentDownloadItem("DXVK", game.dxvk, game.dxvkRepoOwner, game.dxvkRepoName, game.dxvkTagName, game.dxvkAssetName, githubService)
 
@@ -137,14 +203,18 @@ fun GameDetailsScreen(
                     if (senderName.isNotBlank()) {
                         scope.launch {
                             try {
-                                supabaseService.submitGameSetting(
+                                val resp = supabaseService.submitGameSetting(
                                     SupabaseClient.API_KEY, SupabaseClient.AUTH,
                                     game.copy(submittedBy = senderName, youtubeUrl = videoUrl, status = "pending")
                                 )
-                                Toast.makeText(context, "Enviado!", Toast.LENGTH_SHORT).show()
-                                showSubmitDialog = false
+                                if (resp.isSuccessful) {
+                                    Toast.makeText(context, "Enviado!", Toast.LENGTH_SHORT).show()
+                                    showSubmitDialog = false
+                                } else {
+                                    Toast.makeText(context, "Erro: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Erro ao enviar", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Erro ao enviar: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -216,47 +286,44 @@ fun ComponentDownloadItem(
 
 @Composable
 fun YouTubePlayer(videoId: String) {
-    AndroidView(factory = { context ->
-        WebView(context).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            settings.loadWithOverviewMode = true
-            settings.useWideViewPort = true
-            settings.allowFileAccess = true
-            settings.allowContentAccess = true
+    val context = LocalContext.current
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
 
-            webViewClient = WebViewClient()
-            webChromeClient = WebChromeClient()
-
-            val html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; }
-                        iframe { width: 100%; height: 100%; border: none; }
-                    </style>
-                </head>
-                <body>
-                    <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                </body>
-                </html>
-            """.trimIndent()
-
-            loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
-        }
-    }, modifier = Modifier.fillMaxSize())
+    AndroidView(
+        factory = { ctx ->
+            YouTubePlayerView(ctx).apply {
+                lifecycleOwner.lifecycle.addObserver(this)
+                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
+                    override fun onReady(youTubePlayer: YouTubePlayer) {
+                        youTubePlayer.cueVideo(videoId, 0f)
+                    }
+                })
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 fun extractYoutubeId(url: String): String? {
+    if (url.isBlank()) return null
+    val cleaned = url.trim()
     return try {
-        if (url.contains("v=")) {
-            url.split("v=")[1].split("&")[0]
-        } else if (url.contains("youtu.be/")) {
-            url.split("youtu.be/")[1].split("?")[0]
-        } else if (url.contains("embed/")) {
-            url.split("embed/")[1].split("?")[0]
-        } else null
+        // Most common pattern: https://youtu.be/zpguI-oucC0?si=...
+        if (cleaned.contains("youtu.be/")) {
+            cleaned.split("youtu.be/").last().split("?").first()
+        }
+        // Standard pattern: https://www.youtube.com/watch?v=...
+        else if (cleaned.contains("v=")) {
+            cleaned.split("v=").last().split("&").first()
+        }
+        // Embed pattern: https://www.youtube.com/embed/...
+        else if (cleaned.contains("embed/")) {
+            cleaned.split("embed/").last().split("?").first()
+        }
+        // Fallback with a more exhaustive regex
+        else {
+            val pattern = "^(?:https?:\\/\\/)?(?:www\\.|m\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})(?:\\S+)?$".toRegex()
+            pattern.find(cleaned)?.groupValues?.get(1)
+        }
     } catch (e: Exception) { null }
 }
