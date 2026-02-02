@@ -292,7 +292,8 @@ fun PanelMainScreen() {
                                             Toast.makeText(context, "Configurações salvas!", Toast.LENGTH_SHORT).show()
                                             loadData()
                                         } else {
-                                            Toast.makeText(context, "Erro ao salvar: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                                            val errorMsg = resp.errorBody()?.string() ?: ""
+                                            Toast.makeText(context, "Erro ao salvar: ${resp.code()} $errorMsg", Toast.LENGTH_LONG).show()
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()

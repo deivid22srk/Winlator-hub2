@@ -222,15 +222,22 @@ fun ComponentDownloadItem(
 fun YouTubePlayer(videoId: String) {
     AndroidView(factory = { context ->
         WebView(context).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            settings.loadWithOverviewMode = true
-            settings.useWideViewPort = true
-            settings.allowFileAccess = true
-            settings.allowContentAccess = true
-            settings.databaseEnabled = true
-            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                mediaPlaybackRequiresUserGesture = false
+                loadWithOverviewMode = true
+                useWideViewPort = true
+                allowFileAccess = true
+                allowContentAccess = true
+                databaseEnabled = true
+                javaScriptCanOpenWindowsAutomatically = true
+                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            }
 
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
@@ -252,7 +259,7 @@ fun YouTubePlayer(videoId: String) {
                 </head>
                 <body>
                     <div class="container">
-                        <iframe src="https://www.youtube.com/embed/$videoId?playsinline=1&rel=0&modestbranding=1"
+                        <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
                                 allow="autoplay; encrypted-media; picture-in-picture"
                                 allowfullscreen></iframe>
                     </div>
@@ -271,7 +278,8 @@ fun extractYoutubeId(url: String): String? {
     return try {
         // Handle short links youtu.be/ID
         if (cleaned.contains("youtu.be/")) {
-            cleaned.split("youtu.be/").last().split("?").first()
+            val parts = cleaned.split("youtu.be/")
+            if (parts.size > 1) parts[1].split("?")[0].split("/")[0] else null
         }
         // Handle standard watch?v=ID
         else if (cleaned.contains("v=")) {
@@ -279,7 +287,7 @@ fun extractYoutubeId(url: String): String? {
         }
         // Handle embed links
         else if (cleaned.contains("embed/")) {
-            cleaned.split("embed/").last().split("?").first()
+            cleaned.split("embed/").last().split("?").first().split("/").last()
         }
         // Handle other common patterns with Regex
         else {

@@ -25,6 +25,20 @@ CREATE TABLE IF NOT EXISTS app_config (
     latest_version INT DEFAULT 1
 );
 
+-- Migrações para app_config (adicionar colunas se não existirem)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='latest_version') THEN
+        ALTER TABLE app_config ADD COLUMN latest_version INT DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='is_update') THEN
+        ALTER TABLE app_config ADD COLUMN is_update BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_config' AND column_name='update_url') THEN
+        ALTER TABLE app_config ADD COLUMN update_url TEXT;
+    END IF;
+END $$;
+
 -- Tabela para configurações de jogos
 CREATE TABLE IF NOT EXISTS game_settings (
     id SERIAL PRIMARY KEY,
@@ -67,6 +81,14 @@ CREATE TABLE IF NOT EXISTS game_settings (
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migrações para game_settings
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='game_settings' AND column_name='created_at') THEN
+        ALTER TABLE game_settings ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+END $$;
 
 -- Inserir categorias padrão
 INSERT INTO categories (name) VALUES ('Winlator'), ('Drivers'), ('Ferramentas'), ('DXVK')
