@@ -329,12 +329,12 @@ fun RepoList(repos: List<SupabaseRepo>, categories: List<SupabaseCategory>, onDe
 
 @Composable
 fun ConfigScreen(config: AppConfig, prefs: android.content.SharedPreferences, onLogout: () -> Unit, onUpdate: (AppConfig) -> Unit) {
-    var title by remember { mutableStateOf(config.dialogTitle ?: "") }
-    var message by remember { mutableStateOf(config.dialogMessage ?: "") }
-    var showDialog by remember { mutableStateOf(config.showDialog ?: false) }
-    var isUpdate by remember { mutableStateOf(config.isUpdate ?: false) }
-    var updateUrl by remember { mutableStateOf(config.updateUrl ?: "") }
-    var latestVersion by remember { mutableStateOf(config.latestVersion?.toString() ?: "1") }
+    var title by remember(config) { mutableStateOf(config.dialogTitle ?: "") }
+    var message by remember(config) { mutableStateOf(config.dialogMessage ?: "") }
+    var showDialog by remember(config) { mutableStateOf(config.showDialog ?: false) }
+    var isUpdate by remember(config) { mutableStateOf(config.isUpdate ?: false) }
+    var updateUrl by remember(config) { mutableStateOf(config.updateUrl ?: "") }
+    var latestVersion by remember(config) { mutableStateOf(config.latestVersion?.toString() ?: "1") }
 
     var mgmtToken by remember { mutableStateOf(prefs.getString("mgmt_token", "") ?: "") }
     var projectRef by remember { mutableStateOf(prefs.getString("project_ref", "jbqaegcuitmqfwpsdazn") ?: "jbqaegcuitmqfwpsdazn") }

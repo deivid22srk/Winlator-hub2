@@ -1,6 +1,7 @@
 package com.winlator.downloader.data
 
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 import retrofit2.http.*
 
 data class SupabaseCategory(
@@ -97,7 +98,7 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body setting: SupabaseGameSetting
-    )
+    ): Response<Unit>
 }
 
 object SupabaseClient {

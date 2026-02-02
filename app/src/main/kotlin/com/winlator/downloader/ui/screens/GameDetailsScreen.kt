@@ -225,6 +225,7 @@ fun YouTubePlayer(videoId: String) {
             settings.useWideViewPort = true
             settings.allowFileAccess = true
             settings.allowContentAccess = true
+            settings.databaseEnabled = true
 
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
@@ -233,13 +234,19 @@ fun YouTubePlayer(videoId: String) {
                 <!DOCTYPE html>
                 <html>
                 <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <style>
-                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; }
-                        iframe { width: 100%; height: 100%; border: none; }
+                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; overflow: hidden; }
+                        .container { position: relative; width: 100%; height: 100%; }
+                        iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
                     </style>
                 </head>
                 <body>
-                    <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                    <div class="container">
+                        <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
+                                allow="autoplay; encrypted-media; picture-in-picture"
+                                allowfullscreen></iframe>
+                    </div>
                 </body>
                 </html>
             """.trimIndent()
@@ -250,13 +257,21 @@ fun YouTubePlayer(videoId: String) {
 }
 
 fun extractYoutubeId(url: String): String? {
+    if (url.isBlank()) return null
     return try {
-        if (url.contains("v=")) {
-            url.split("v=")[1].split("&")[0]
-        } else if (url.contains("youtu.be/")) {
-            url.split("youtu.be/")[1].split("?")[0]
-        } else if (url.contains("embed/")) {
-            url.split("embed/")[1].split("?")[0]
-        } else null
+        val pattern = "^(?:https?:\\/\\/)?(?:www\\.|m\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})(?:\\S+)?$".toRegex()
+        val matchResult = pattern.find(url.trim())
+        if (matchResult != null) {
+            matchResult.groupValues[1]
+        } else {
+            // Fallback for simpler split if regex fails for some reason
+            if (url.contains("v=")) {
+                url.split("v=")[1].split("&")[0]
+            } else if (url.contains("youtu.be/")) {
+                url.split("youtu.be/")[1].split("?")[0].split("/").last()
+            } else if (url.contains("embed/")) {
+                url.split("embed/")[1].split("?")[0].split("/").last()
+            } else null
+        }
     } catch (e: Exception) { null }
 }

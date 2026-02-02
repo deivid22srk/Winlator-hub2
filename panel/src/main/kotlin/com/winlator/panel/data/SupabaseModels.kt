@@ -1,6 +1,7 @@
 package com.winlator.panel.data
 
 import com.google.gson.annotations.SerializedName
+import retrofit2.Response
 import retrofit2.http.*
 
 data class SupabaseCategory(
@@ -96,14 +97,14 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body category: SupabaseCategory
-    )
+    ): Response<Unit>
 
     @DELETE("rest/v1/categories")
     suspend fun deleteCategory(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<Unit>
 
     // Repositories
     @GET("rest/v1/repositories?select=*")
@@ -117,7 +118,7 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body repo: SupabaseRepo
-    )
+    ): Response<Unit>
 
     @PATCH("rest/v1/repositories")
     suspend fun updateRepository(
@@ -125,14 +126,14 @@ interface SupabaseService {
         @Header("Authorization") auth: String,
         @Query("id") id: String,
         @Body repo: SupabaseRepo
-    )
+    ): Response<Unit>
 
     @DELETE("rest/v1/repositories")
     suspend fun deleteRepository(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<Unit>
 
     // App Config
     @GET("rest/v1/app_config?select=*")
@@ -147,7 +148,7 @@ interface SupabaseService {
         @Header("Authorization") auth: String,
         @Query("id") id: String,
         @Body config: AppConfig
-    )
+    ): Response<Unit>
 
     // Game Settings
     @GET("rest/v1/game_settings?select=*&order=id.desc")
@@ -162,14 +163,14 @@ interface SupabaseService {
         @Header("Authorization") auth: String,
         @Query("id") id: String,
         @Body setting: Map<String, String>
-    )
+    ): Response<Unit>
 
     @DELETE("rest/v1/game_settings")
     suspend fun deleteGameSetting(
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Query("id") id: String
-    )
+    ): Response<Unit>
 }
 
 // Management API Models
