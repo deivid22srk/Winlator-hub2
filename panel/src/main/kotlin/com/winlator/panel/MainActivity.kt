@@ -210,9 +210,11 @@ fun PanelMainScreen() {
                             onConfirm = { name ->
                                 scope.launch {
                                     try {
-                                        service.createCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, SupabaseCategory(name = name))
-                                        loadData()
-                                        showAddDialog = false
+                                        val resp = service.createCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, SupabaseCategory(name = name))
+                                        if (resp.isSuccessful) {
+                                            loadData()
+                                            showAddDialog = false
+                                        }
                                     } catch (e: Exception) { e.printStackTrace() }
                                 }
                             }
@@ -224,12 +226,14 @@ fun PanelMainScreen() {
                             onConfirm = { name, owner, repo, desc, catId ->
                                 scope.launch {
                                     try {
-                                        service.createRepository(
+                                        val resp = service.createRepository(
                                             SupabaseClient.API_KEY, SupabaseClient.authHeader,
                                             SupabaseRepo(name = name, owner = owner, repo = repo, description = desc, categoryId = catId)
                                         )
-                                        loadData()
-                                        showAddDialog = false
+                                        if (resp.isSuccessful) {
+                                            loadData()
+                                            showAddDialog = false
+                                        }
                                     } catch (e: Exception) { e.printStackTrace() }
                                 }
                             }
@@ -250,16 +254,16 @@ fun PanelMainScreen() {
                     1 -> CategoryList(categories, onDelete = { id ->
                         scope.launch {
                             try {
-                                service.deleteCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
-                                loadData()
+                                val resp = service.deleteCategory(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
+                                if (resp.isSuccessful) loadData()
                             } catch (e: Exception) { e.printStackTrace() }
                         }
                     })
                     2 -> RepoList(repositories, categories, onDelete = { id ->
                         scope.launch {
                             try {
-                                service.deleteRepository(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
-                                loadData()
+                                val resp = service.deleteRepository(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.$id")
+                                if (resp.isSuccessful) loadData()
                             } catch (e: Exception) { e.printStackTrace() }
                         }
                     })
@@ -275,9 +279,25 @@ fun PanelMainScreen() {
                             onUpdate = { updated ->
                                 scope.launch {
                                     try {
-                                        service.updateAppConfig(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.1", updated)
-                                        loadData()
-                                    } catch (e: Exception) { e.printStackTrace() }
+                                        val updateMap = mapOf(
+                                            "dialog_title" to updated.dialogTitle,
+                                            "dialog_message" to updated.dialogMessage,
+                                            "show_dialog" to updated.showDialog,
+                                            "is_update" to updated.isUpdate,
+                                            "update_url" to updated.updateUrl,
+                                            "latest_version" to updated.latestVersion
+                                        )
+                                        val resp = service.updateAppConfig(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.1", updateMap)
+                                        if (resp.isSuccessful) {
+                                            Toast.makeText(context, "Configurações salvas!", Toast.LENGTH_SHORT).show()
+                                            loadData()
+                                        } else {
+                                            Toast.makeText(context, "Erro ao salvar: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        Toast.makeText(context, "Erro: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         )
@@ -507,6 +527,7 @@ fun UsageItem(label: String, stat: UsageStat?) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameSettingsAdminScreen(service: SupabaseService) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var submissions by remember { mutableStateOf<List<SupabaseGameSetting>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -548,22 +569,25 @@ fun GameSettingsAdminScreen(service: SupabaseService) {
                             if (game.status == "pending") {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "approved"))
-                                        load()
+                                        val resp = service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "approved"))
+                                        if (resp.isSuccessful) load()
+                                        else Toast.makeText(context, "Erro: ${resp.code()}", Toast.LENGTH_SHORT).show()
                                     }
                                 }) { Icon(Icons.Default.Check, null, tint = androidx.compose.ui.graphics.Color(0xFF4CAF50)) }
 
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "rejected"))
-                                        load()
+                                        val resp = service.updateGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}", mapOf("status" to "rejected"))
+                                        if (resp.isSuccessful) load()
+                                        else Toast.makeText(context, "Erro: ${resp.code()}", Toast.LENGTH_SHORT).show()
                                     }
                                 }) { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
                             } else {
                                 IconButton(onClick = {
                                     scope.launch {
-                                        service.deleteGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}")
-                                        load()
+                                        val resp = service.deleteGameSetting(SupabaseClient.API_KEY, SupabaseClient.authHeader, "eq.${game.id}")
+                                        if (resp.isSuccessful) load()
+                                        else Toast.makeText(context, "Erro: ${resp.code()}", Toast.LENGTH_SHORT).show()
                                     }
                                 }) { Icon(Icons.Default.Delete, null) }
                             }

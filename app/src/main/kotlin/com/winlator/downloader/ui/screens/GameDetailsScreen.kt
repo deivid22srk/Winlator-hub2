@@ -137,14 +137,18 @@ fun GameDetailsScreen(
                     if (senderName.isNotBlank()) {
                         scope.launch {
                             try {
-                                supabaseService.submitGameSetting(
+                                val resp = supabaseService.submitGameSetting(
                                     SupabaseClient.API_KEY, SupabaseClient.AUTH,
                                     game.copy(submittedBy = senderName, youtubeUrl = videoUrl, status = "pending")
                                 )
-                                Toast.makeText(context, "Enviado!", Toast.LENGTH_SHORT).show()
-                                showSubmitDialog = false
+                                if (resp.isSuccessful) {
+                                    Toast.makeText(context, "Enviado!", Toast.LENGTH_SHORT).show()
+                                    showSubmitDialog = false
+                                } else {
+                                    Toast.makeText(context, "Erro: ${resp.code()}", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Erro ao enviar", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Erro ao enviar: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -226,8 +230,13 @@ fun YouTubePlayer(videoId: String) {
             settings.allowFileAccess = true
             settings.allowContentAccess = true
             settings.databaseEnabled = true
+            settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    return false
+                }
+            }
             webChromeClient = WebChromeClient()
 
             val html = """
@@ -243,7 +252,7 @@ fun YouTubePlayer(videoId: String) {
                 </head>
                 <body>
                     <div class="container">
-                        <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0&modestbranding=1"
+                        <iframe src="https://www.youtube.com/embed/$videoId?playsinline=1&rel=0&modestbranding=1"
                                 allow="autoplay; encrypted-media; picture-in-picture"
                                 allowfullscreen></iframe>
                     </div>
@@ -258,20 +267,24 @@ fun YouTubePlayer(videoId: String) {
 
 fun extractYoutubeId(url: String): String? {
     if (url.isBlank()) return null
+    val cleaned = url.trim()
     return try {
-        val pattern = "^(?:https?:\\/\\/)?(?:www\\.|m\\.)?(?:youtu\\.be\\/|youtube\\.com\\/(?:embed\\/|v\\/|watch\\?v=|watch\\?.+&v=))((\\w|-){11})(?:\\S+)?$".toRegex()
-        val matchResult = pattern.find(url.trim())
-        if (matchResult != null) {
-            matchResult.groupValues[1]
-        } else {
-            // Fallback for simpler split if regex fails for some reason
-            if (url.contains("v=")) {
-                url.split("v=")[1].split("&")[0]
-            } else if (url.contains("youtu.be/")) {
-                url.split("youtu.be/")[1].split("?")[0].split("/").last()
-            } else if (url.contains("embed/")) {
-                url.split("embed/")[1].split("?")[0].split("/").last()
-            } else null
+        // Handle short links youtu.be/ID
+        if (cleaned.contains("youtu.be/")) {
+            cleaned.split("youtu.be/").last().split("?").first()
+        }
+        // Handle standard watch?v=ID
+        else if (cleaned.contains("v=")) {
+            cleaned.split("v=").last().split("&").first()
+        }
+        // Handle embed links
+        else if (cleaned.contains("embed/")) {
+            cleaned.split("embed/").last().split("?").first()
+        }
+        // Handle other common patterns with Regex
+        else {
+            val pattern = "(?<=watch\\?v=|/videos/|embed/|youtu.be/|/v/|/e/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%2F|youtu.be%2F|%2Fv%2F)[^#&?\\s]*".toRegex()
+            pattern.find(cleaned)?.value
         }
     } catch (e: Exception) { null }
 }

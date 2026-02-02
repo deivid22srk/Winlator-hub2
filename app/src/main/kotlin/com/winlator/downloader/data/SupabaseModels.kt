@@ -1,6 +1,7 @@
 package com.winlator.downloader.data
 
 import com.google.gson.annotations.SerializedName
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -19,12 +20,12 @@ data class SupabaseRepo(
 )
 
 data class AppConfig(
-    @SerializedName("dialog_title") val dialogTitle: String,
-    @SerializedName("dialog_message") val dialogMessage: String,
-    @SerializedName("show_dialog") val showDialog: Boolean,
-    @SerializedName("is_update") val isUpdate: Boolean = false,
-    @SerializedName("update_url") val updateUrl: String = "",
-    @SerializedName("latest_version") val latestVersion: Int = 1
+    @SerializedName("dialog_title") val dialogTitle: String? = "",
+    @SerializedName("dialog_message") val dialogMessage: String? = "",
+    @SerializedName("show_dialog") val showDialog: Boolean? = false,
+    @SerializedName("is_update") val isUpdate: Boolean? = false,
+    @SerializedName("update_url") val updateUrl: String? = "",
+    @SerializedName("latest_version") val latestVersion: Int? = 1
 )
 
 data class SupabaseGameSetting(
@@ -98,7 +99,7 @@ interface SupabaseService {
         @Header("apikey") apiKey: String,
         @Header("Authorization") auth: String,
         @Body setting: SupabaseGameSetting
-    ): Response<Unit>
+    ): Response<ResponseBody>
 }
 
 object SupabaseClient {
