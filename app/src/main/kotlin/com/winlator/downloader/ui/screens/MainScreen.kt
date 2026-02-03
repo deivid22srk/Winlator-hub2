@@ -11,13 +11,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -119,6 +122,8 @@ fun HomeScreen() {
     var repositories by remember { mutableStateOf<List<SupabaseRepo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     val supabaseService = remember {
         Retrofit.Builder()
             .baseUrl(SupabaseClient.URL)
@@ -138,49 +143,50 @@ fun HomeScreen() {
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = {
-                    Text(selectedRepo?.name ?: selectedCategory?.name ?: "Winlator Hub")
+                    Text(
+                        selectedRepo?.name ?: selectedCategory?.name ?: "Winlator Hub",
+                        fontWeight = FontWeight.Bold
+                    )
                 },
                 navigationIcon = {
                     if (selectedRepo != null) {
                         IconButton(onClick = { selectedRepo = null }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                         }
                     } else if (selectedCategory != null) {
                         IconButton(onClick = { selectedCategory = null }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.weight(1f)) {
-                    if (isLoading) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                androidx.compose.animation.Crossfade(targetState = Triple(selectedCategory, selectedRepo, isLoading), label = "home_content") { state ->
+                    val (cat, repo, loading) = state
+                    when {
+                        cat == null -> {
+                            CategoryList(categories) { selectedCategory = it }
                         }
-                    } else if (selectedCategory == null) {
-                        CategoryList(categories) { cat ->
-                            selectedCategory = cat
+                        repo == null -> {
+                            val filteredRepos = repositories.filter { it.categoryId == cat.id }
+                                .map { WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description) }
+                            RepoList(repos = filteredRepos) { selectedRepo = it }
                         }
-                    } else if (selectedRepo == null) {
-                        val filteredRepos = repositories.filter { it.categoryId == selectedCategory!!.id }
-                            .map { WinlatorRepo(id = it.name, name = it.name, owner = it.owner, repo = it.repo, description = it.description) }
-
-                        RepoList(repos = filteredRepos) { repo ->
-                            selectedRepo = repo
+                        else -> {
+                            ReleaseList(repo = repo)
                         }
-                    } else {
-                        ReleaseList(repo = selectedRepo!!)
                     }
                 }
             }
@@ -192,8 +198,17 @@ fun HomeScreen() {
 fun CategoryList(categories: List<SupabaseCategory>, onCategoryClick: (SupabaseCategory) -> Unit) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize()
     ) {
+        item {
+            Text(
+                "Categorias",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
         items(categories) { category ->
             CategoryCard(category = category, onClick = { onCategoryClick(category) })
         }
@@ -202,20 +217,31 @@ fun CategoryList(categories: List<SupabaseCategory>, onCategoryClick: (SupabaseC
 
 @Composable
 fun CategoryCard(category: SupabaseCategory, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Category, null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(16.dp))
-            Text(category.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, null)
-        }
+        ListItem(
+            headlineContent = { Text(category.name, fontWeight = FontWeight.Bold) },
+            leadingContent = {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Category,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            },
+            trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+            colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+        )
     }
 }
 
@@ -223,8 +249,17 @@ fun CategoryCard(category: SupabaseCategory, onClick: () -> Unit) {
 fun RepoList(repos: List<WinlatorRepo>, onRepoClick: (WinlatorRepo) -> Unit) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize()
     ) {
+        item {
+            Text(
+                "Repositórios",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
         items(repos) { repo ->
             RepoCard(repo = repo, onClick = { onRepoClick(repo) })
         }
@@ -233,42 +268,38 @@ fun RepoList(repos: List<WinlatorRepo>, onRepoClick: (WinlatorRepo) -> Unit) {
 
 @Composable
 fun RepoCard(repo: WinlatorRepo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
+        ListItem(
+            headlineContent = { Text(repo.name, fontWeight = FontWeight.Bold) },
+            supportingContent = {
                 Text(
-                    text = repo.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = repo.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    repo.description,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.ChevronRight, contentDescription = null)
-        }
+            },
+            leadingContent = {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            },
+            trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+            colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+        )
     }
 }
 
