@@ -31,9 +31,9 @@ fun DownloadScreen() {
 
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = { Text("Downloads", fontWeight = FontWeight.ExtraBold) },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+            TopAppBar(
+                title = { Text("Downloads", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
                 )
