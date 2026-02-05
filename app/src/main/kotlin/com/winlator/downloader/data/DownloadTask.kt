@@ -28,7 +28,7 @@ class DownloadTask(
     private val client get() = AppDownloadManager.client
 
     fun start(scope: CoroutineScope) {
-        if (_status.value == DownloadStatus.DOWNLOADING) return
+        if (_status.value == DownloadStatus.DOWNLOADING || _status.value == DownloadStatus.COMPLETED) return
         _status.value = DownloadStatus.QUEUED
 
         job = scope.launch(Dispatchers.IO) {
@@ -56,6 +56,12 @@ class DownloadTask(
                     val body = response.body ?: throw Exception("Empty body")
                     val totalBytes = (body.contentLength() + downloadedBytes)
 
+                    if (downloadedBytes >= totalBytes && totalBytes > 0) {
+                        _progress.value = 1f
+                        _status.value = DownloadStatus.COMPLETED
+                        return@launch
+                    }
+
                     file.parentFile?.mkdirs()
                     val raf = RandomAccessFile(file, "rw")
                     try {
@@ -63,20 +69,20 @@ class DownloadTask(
 
                         val source = body.source()
                         val buffer = ByteArray(8192)
-                        var bytesRead: Int
+                        var bytesRead = 0
                         var currentDownloaded = downloadedBytes
 
-                        while (source.read(buffer).also { bytesRead = it } != -1) {
-                            if (!isActive) break
+                        while (isActive && source.read(buffer).also { bytesRead = it } != -1) {
                             raf.write(buffer, 0, bytesRead)
                             currentDownloaded += bytesRead
-                            _progress.value = currentDownloaded.toFloat() / totalBytes
+                            _progress.value = if (totalBytes > 0) currentDownloaded.toFloat() / totalBytes else 0f
                         }
                     } finally {
                         raf.close()
                     }
                     if (isActive) {
                         _status.value = DownloadStatus.COMPLETED
+                        _progress.value = 1f
                     }
                 }
             } catch (e: Exception) {
@@ -102,7 +108,11 @@ class DownloadTask(
 }
 
 object AppDownloadManager {
-    val client = OkHttpClient()
+    val client = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
     private val _tasks = mutableStateListOf<DownloadTask>()
     val tasks: List<DownloadTask> = _tasks
     val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -111,7 +121,20 @@ object AppDownloadManager {
         val existing = _tasks.find { it.url == url }
         if (existing != null) return existing
 
-        val newTask = DownloadTask(url, file, title)
+        var finalFile = file
+        if (finalFile.exists()) {
+            val name = finalFile.nameWithoutExtension
+            val ext = finalFile.extension
+            val parent = finalFile.parentFile
+            var counter = 1
+            while (finalFile.exists()) {
+                val newName = if (ext.isNotEmpty()) "$name ($counter).$ext" else "$name ($counter)"
+                finalFile = File(parent, newName)
+                counter++
+            }
+        }
+
+        val newTask = DownloadTask(url, finalFile, title)
         _tasks.add(newTask)
         return newTask
     }

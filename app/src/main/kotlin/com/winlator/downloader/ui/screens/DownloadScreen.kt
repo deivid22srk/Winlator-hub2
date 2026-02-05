@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -115,32 +116,57 @@ fun DownloadTaskItem(task: DownloadTask) {
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = when(status) {
-                        DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
-                        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.secondaryContainer
-                    }
+                Box(
+                    modifier = Modifier.size(64.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = when(status) {
-                                DownloadStatus.COMPLETED -> Icons.Default.Check
-                                DownloadStatus.FAILED -> Icons.Default.ErrorOutline
-                                DownloadStatus.PAUSED -> Icons.Default.Pause
-                                else -> Icons.Default.FileDownload
-                            },
-                            contentDescription = null,
-                            tint = if (status == DownloadStatus.COMPLETED || status == DownloadStatus.FAILED)
-                                MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSecondaryContainer
+                    if (status == DownloadStatus.DOWNLOADING || status == DownloadStatus.QUEUED || status == DownloadStatus.PAUSED) {
+                        CircularProgressIndicator(
+                            progress = { animatedProgress },
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 6.dp,
+                            strokeCap = StrokeCap.Round,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            color = MaterialTheme.colorScheme.primary
                         )
+                    } else if (status == DownloadStatus.COMPLETED) {
+                        CircularProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 6.dp,
+                            strokeCap = StrokeCap.Round,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = when(status) {
+                            DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
+                            DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
+                        }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = when(status) {
+                                    DownloadStatus.COMPLETED -> Icons.Default.Check
+                                    DownloadStatus.FAILED -> Icons.Default.ErrorOutline
+                                    DownloadStatus.PAUSED -> Icons.Default.Pause
+                                    else -> Icons.Default.FileDownload
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (status == DownloadStatus.COMPLETED || status == DownloadStatus.FAILED)
+                                    MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
                     }
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                     Text(
                         text = task.title,
                         style = MaterialTheme.typography.titleMedium,
@@ -149,19 +175,21 @@ fun DownloadTaskItem(task: DownloadTask) {
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Text(
-                        text = when (status) {
-                            DownloadStatus.IDLE -> "Preparando..."
-                            DownloadStatus.QUEUED -> "Na fila..."
-                            DownloadStatus.DOWNLOADING -> "Baixando..."
-                            DownloadStatus.PAUSED -> "Pausado"
-                            DownloadStatus.COMPLETED -> "Concluído"
-                            DownloadStatus.FAILED -> "Falha no download"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (status == DownloadStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = when (status) {
+                                DownloadStatus.IDLE -> "Preparando..."
+                                DownloadStatus.QUEUED -> "Na fila..."
+                                DownloadStatus.DOWNLOADING -> "Baixando (${(progress * 100).toInt()}%)"
+                                DownloadStatus.PAUSED -> "Pausado (${(progress * 100).toInt()}%)"
+                                DownloadStatus.COMPLETED -> "Concluído"
+                                DownloadStatus.FAILED -> "Falha no download"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (status == DownloadStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 Row {
@@ -208,33 +236,6 @@ fun DownloadTaskItem(task: DownloadTask) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(CircleShape),
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    color = if (status == DownloadStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
         }
     }
 }
